@@ -1,3 +1,9 @@
+"""
+Lizard Dataset described here: https://arxiv.org/pdf/2108.11195.pdf
+
+TODO: Cache label data
+"""
+
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -8,6 +14,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 
 
+AVOCADO_DATASET_LOCATION = Path('/data/ldap/histopathologic/original_read_only/Lizard')
 LABELS_DIR = Path('labels/Labels')
 
 
@@ -42,7 +49,23 @@ class Snapshot:
 
 
 class LizardDetectionDataset(Dataset):
-    def __init__(self, data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None):
+    def __init__(self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, cache_images: bool = False):
+        """
+        Args:
+            snapshots: List of snapshots for this dataset
+            data_dir: The directory to search images and labels in. This directory should have the three subdirectories
+                      "labels/Labels", "images1", "images2"
+            image_size: The size of the images returned by __getitem__ as [height, width]
+            cache_images: Whether to keep loaded images in memory. Defaults to False.
+        """
+        self.snapshots = snapshots
+        self.data_dir = data_dir
+        self.image_size = image_size
+        self.cache_images = cache_images
+        self.image_cache: Dict[Path, np.ndarray] = {}
+
+    @staticmethod
+    def from_datadir(data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None):
         """
         Args:
             data_dir: The directory to search images and labels in. This directory should have the three subdirectories
@@ -51,10 +74,25 @@ class LizardDetectionDataset(Dataset):
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
         """
         image_stride = image_stride or image_size  # use image size as image stride, if no images stride provided
+        snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride)
+        return LizardDetectionDataset(
+            snapshots=snapshots,
+            data_dir=data_dir,
+            image_size=image_size,
+        )
 
-        self.data_dir = data_dir
-        self.image_size = image_size
-        self.snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride)
+    @staticmethod
+    def from_avocado(image_size: np.ndarray, image_stride: np.ndarray or None = None):
+        """
+        Args:
+            image_size: The size of the images returned by __getitem__ as [height, width]
+            image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
+        """
+        return LizardDetectionDataset.from_datadir(
+            data_dir=AVOCADO_DATASET_LOCATION,
+            image_size=image_size,
+            image_stride=image_stride,
+        )
 
     @staticmethod
     def _define_snapshots(data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray) -> List[Snapshot]:
@@ -94,13 +132,23 @@ class LizardDetectionDataset(Dataset):
                 position[0] += image_stride[0]
         return snapshots
 
+    def read_image(self, image_path):
+        if self.cache_images:
+            image = self.image_cache.get(image_path)
+            if image is None:
+                image = imread(str(image_path))
+                self.image_cache[image_path] = image
+        else:
+            image = imread(str(image_path))
+        return image
+
     def get_subimage(self, snapshot) -> np.ndarray:
         image_path = self.data_dir / snapshot.get_image_path()
-        image = imread(str(image_path))
+        image = self.read_image(image_path)
         return image[
-               snapshot.position[0]:snapshot.position[0]+self.image_size[0],
-               snapshot.position[1]:snapshot.position[1]+self.image_size[1]
-               ]
+            snapshot.position[0]:snapshot.position[0]+self.image_size[0],
+            snapshot.position[1]:snapshot.position[1]+self.image_size[1]
+        ]
 
     def get_label_data(self, snapshot) -> Dict:
         label_path = self.data_dir / snapshot.get_label_path()
