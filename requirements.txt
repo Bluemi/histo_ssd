@@ -1,0 +1,7 @@
+determined==0.18.0
+cbmi-utils==0.3.29
+torch==1.11.0+cu113
+numpy~=1.21.6
+Pillow~=9.1.0
+scikit-image
+scikit-image==0.18.3
