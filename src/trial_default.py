@@ -15,9 +15,12 @@ class DefaultTrial(PyTorchTrial):
         self.dataset_name = self.context.get_hparam('dataset')
         self.num_workers = self.context.get_hparam('num_workers')
 
+        # TODO: build model
+
     def train_batch(
             self, batch: pytorch.TorchData, epoch_idx: int, batch_idx: int
     ) -> Union[torch.Tensor, Dict[str, Any]]:
+        # TODO
         pass
 
     def build_training_data_loader(self) -> pytorch.DataLoader:
@@ -34,4 +37,14 @@ class DefaultTrial(PyTorchTrial):
         return dataloader
 
     def build_validation_data_loader(self) -> pytorch.DataLoader:
-        pass
+        dataset = datasets.get_dataset(self.dataset_name)
+        # TODO: Augmentation (Flip, Turn 90 Degrees)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.context.get_per_slot_batch_size(),
+            shuffle=False,
+            num_workers=self.num_workers,
+            pin_memory=True
+        )
+
+        return dataloader
