@@ -16,6 +16,7 @@ from PIL import Image
 
 AVOCADO_DATASET_LOCATION = Path('/data/ldap/histopathologic/original_read_only/Lizard')
 LABELS_DIR = Path('labels/Labels')
+LABELS = ['Neutrophil', 'Epithelial', 'Lymphocyte', 'Plasma', 'Eosinophil', 'Connective tissue']
 
 
 def imread(image_path):
