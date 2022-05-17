@@ -1,6 +1,6 @@
 import numpy as np
 from torch.utils.data import Dataset
-from lizard_detection import LizardDetectionDataset
+from .lizard_detection import LizardDetectionDataset
 
 
 def get_dataset(dataset_name: str) -> Dataset:
@@ -9,6 +9,7 @@ def get_dataset(dataset_name: str) -> Dataset:
         dataset = LizardDetectionDataset.from_avocado(
             image_size=np.ndarray([224, 224]),
             image_stride=np.ndarray([112, 112]),
+            use_cache=True,
         )
     if dataset is None:
         raise ValueError('unknown dataset \"{}\"'.format(dataset_name))

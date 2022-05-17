@@ -24,6 +24,7 @@ class DefaultTrial(PyTorchTrial):
         pass
 
     def build_training_data_loader(self) -> pytorch.DataLoader:
+        # TODO: split train/eval/test
         dataset = datasets.get_dataset(self.dataset_name)
         # TODO: Augmentation (Flip, Turn 90 Degrees)
         dataloader = DataLoader(
@@ -37,6 +38,7 @@ class DefaultTrial(PyTorchTrial):
         return dataloader
 
     def build_validation_data_loader(self) -> pytorch.DataLoader:
+        # TODO: split train/eval/test
         dataset = datasets.get_dataset(self.dataset_name)
         # TODO: Augmentation (Flip, Turn 90 Degrees)
         dataloader = DataLoader(

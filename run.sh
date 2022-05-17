@@ -2,7 +2,7 @@
 
 case "$1" in
 	t)
-		python3 ./tests/test1.py
+		PYTHONPATH=./src python3 ./tests/test_lizard.py
 		;;
 	*)
 		echo "invalid input"
