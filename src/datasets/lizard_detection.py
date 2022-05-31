@@ -166,7 +166,7 @@ class LizardDetectionDataset(Dataset):
                 position[0] += image_stride[0]
         return snapshots
 
-    def split(self, split_ratio: float) -> Tuple[Any, Any]:
+    def split(self, split_ratio: float, seed: int = 42) -> Tuple[Any, Any]:
         """
         Splits this dataset in two. The two split datasets do not share images.
 
@@ -175,28 +175,30 @@ class LizardDetectionDataset(Dataset):
         Returns:
             A tuple of two datasets.
         """
-        snapshots = copy.copy(self.snapshots)
-        random.shuffle(snapshots)
-        snapshots = sorted(snapshots, key=lambda snapshot: snapshot.sample_name)
-        split_index = int(len(snapshots) * split_ratio)
-
-        snapshots1 = []
-        snapshots2 = []
-        for _, g in itertools.groupby(snapshots, key=lambda snapshot: snapshot.sample_name):
-            if len(snapshots1) < split_index:
-                snapshots1.extend(g)
+        snapshots_dict = {}  # maps sample_names to snapshots
+        for snapshot in self.snapshots:
+            if snapshot.sample_name not in snapshots_dict:
+                snapshots_dict[snapshot.sample_name] = []
+            snapshots_dict[snapshot.sample_name].append(snapshot)
+        split_index = int(len(self.snapshots) * split_ratio)
+        first_set = []
+        second_set = []
+        snapshots_lists_sorted = sorted(snapshots_dict.values(), key=lambda sl: sl[0].sample_name)
+        random.Random(seed).shuffle(snapshots_lists_sorted)
+        for snapshot_list in snapshots_lists_sorted:
+            if len(first_set) >= split_index:
+                second_set.extend(snapshot_list)
             else:
-                snapshots2.extend(g)
-
+                first_set.extend(snapshot_list)
         return (
             LizardDetectionDataset(
-                snapshots=snapshots1,
+                snapshots=first_set,
                 data_dir=self.data_dir,
                 image_size=self.image_size,
                 image_cache=self.image_cache,
             ),
             LizardDetectionDataset(
-                snapshots=snapshots2,
+                snapshots=second_set,
                 data_dir=self.data_dir,
                 image_size=self.image_size,
                 image_cache=self.image_cache,
