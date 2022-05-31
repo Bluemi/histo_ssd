@@ -2,10 +2,13 @@
 Lizard Dataset described here: https://arxiv.org/pdf/2108.11195.pdf
 
 TODO: split train/eval/test
+TODO: rework transform bounding box
 """
-
+import copy
+import itertools
+import random
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import scipy.io as sio
 import numpy as np
@@ -56,21 +59,19 @@ class Snapshot:
 
 
 class LizardDetectionDataset(Dataset):
-    def __init__(self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, use_cache):
+    def __init__(self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, image_cache=None):
         """
         Args:
             snapshots: List of snapshots for this dataset
             data_dir: The directory to search images and labels in. This directory should have the three subdirectories
                       "labels/Labels", "images1", "images2"
             image_size: The size of the images returned by __getitem__ as [height, width]
-            use_cache: Whether to keep loaded images in memory. Defaults to False.
+            image_cache: The image cache to use. If None no image caching will be used.
         """
         self.snapshots = snapshots
         self.data_dir = data_dir
         self.image_size = image_size
-        self.image_cache: Dict[Path, np.ndarray] or None = None
-        if use_cache:
-            self.image_cache = {}
+        self.image_cache: Dict[Path, np.ndarray] or None = image_cache
 
     @staticmethod
     def from_datadir(
@@ -84,15 +85,14 @@ class LizardDetectionDataset(Dataset):
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
             use_cache: Whether to keep loaded images in memory. Defaults to False.
         """
-        image_stride = image_stride
-        if image_stride is None:  # use image size as image stride, if no images stride provided
-            image_stride = image_size
+        # use image size as image stride, if no images stride provided
+        image_stride = image_size if image_stride is None else image_stride
         snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride)
         return LizardDetectionDataset(
             snapshots=snapshots,
             data_dir=data_dir,
             image_size=image_size,
-            use_cache=use_cache,
+            image_cache={} if use_cache else None,
         )
 
     @staticmethod
@@ -124,13 +124,13 @@ class LizardDetectionDataset(Dataset):
         subimages = []
         for image_file in image_files:
             subimages.extend(
-                LizardDetectionDataset.snapshots_from_image_file(data_dir, image_file, image_size, image_stride)
+                LizardDetectionDataset._snapshots_from_image_file(data_dir, image_file, image_size, image_stride)
             )
 
         return subimages
 
     @staticmethod
-    def snapshots_from_image_file(
+    def _snapshots_from_image_file(
             data_dir: Path, filename: Path, image_size: np.ndarray, image_stride: np.ndarray
     ) -> List[Snapshot]:
         with Image.open(filename) as image:
@@ -165,6 +165,43 @@ class LizardDetectionDataset(Dataset):
                 position[1] = 0
                 position[0] += image_stride[0]
         return snapshots
+
+    def split(self, split_ratio: float) -> Tuple[Any, Any]:
+        """
+        Splits this dataset in two. The two split datasets do not share images.
+
+        Args:
+            split_ratio: A float between 0.0 and 1.0 defining the share of samples the first returned dataset includes.
+        Returns:
+            A tuple of two datasets.
+        """
+        snapshots = copy.copy(self.snapshots)
+        random.shuffle(snapshots)
+        snapshots = sorted(snapshots, key=lambda snapshot: snapshot.sample_name)
+        split_index = int(len(snapshots) * split_ratio)
+
+        snapshots1 = []
+        snapshots2 = []
+        for _, g in itertools.groupby(snapshots, key=lambda snapshot: snapshot.sample_name):
+            if len(snapshots1) < split_index:
+                snapshots1.extend(g)
+            else:
+                snapshots2.extend(g)
+
+        return (
+            LizardDetectionDataset(
+                snapshots=snapshots1,
+                data_dir=self.data_dir,
+                image_size=self.image_size,
+                image_cache=self.image_cache,
+            ),
+            LizardDetectionDataset(
+                snapshots=snapshots2,
+                data_dir=self.data_dir,
+                image_size=self.image_size,
+                image_cache=self.image_cache,
+            ),
+        )
 
     @staticmethod
     def _load_all_label_data(data_dir: Path, sample_name: str):
