@@ -2,8 +2,10 @@ import torch
 
 
 def main():
-    print('cuda_available:', torch.cuda.is_available())
-    print('device name:', torch.cuda.get_device_name(0))
+    a = torch.arange(0, 4).reshape((2, 2))
+    b = torch.arange(0, 4).reshape((2, 2)) + 4
+    print(f'matmul\n{a}\n{b}\n)')
+    print(torch.matmul(a, b))
 
 
 if __name__ == '__main__':
