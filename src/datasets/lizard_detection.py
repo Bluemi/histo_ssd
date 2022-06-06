@@ -4,8 +4,6 @@ Lizard Dataset described here: https://arxiv.org/pdf/2108.11195.pdf
 TODO: split train/eval/test
 TODO: rework transform bounding box
 """
-import copy
-import itertools
 import random
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
