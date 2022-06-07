@@ -2,6 +2,7 @@ import torch
 from skimage.io import imread
 
 
+SIMPLE_SCALES = True
 torch.set_printoptions(2)
 
 
@@ -62,22 +63,23 @@ def create_anchor_boxes(image_shape, scales, ratios):
         center_points[:, :, 0] /= float(image_shape[0])
         center_points[:, :, 1] /= float(image_shape[1])
     print(center_points)
+    print(center_points.shape)
 
 
 def main():
     data = torch.tensor(imread('res/black_rect.png'))
-    scales = [0.25, 0.5, 0.75]
-    ratios = [0.5, 1, 2]
-    scales = [1.0]
-    ratios = [1.0]
+    if SIMPLE_SCALES:
+        scales = [1.0]
+        ratios = [1.0]
+    else:
+        scales = [0.25, 0.5, 0.75]
+        ratios = [0.5, 1, 2]
     # boxes = multibox_prior(data, sizes=scales, ratios=ratios)
     create_anchor_boxes(data.shape[-3:-1], scales=scales, ratios=ratios)
-    """
-    boxes = boxes.reshape(224, 224, 1, 4)
 
-    print(boxes.size())
-    print(boxes[0, 0, 0, :])
-    """
+    # boxes = boxes.reshape(8, 5, 1, 4)
+    # print(boxes.size())
+    # print(boxes[0, 0, 0, :])
 
 
 if __name__ == '__main__':
