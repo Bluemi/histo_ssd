@@ -13,15 +13,16 @@ def show_image(image):
 
 def draw_boxes(
         image: torch.Tensor, bounding_boxes: torch.Tensor,
-        colors: Union[Color, List[Color], int, str, None] = 'random'
+        color: Union[Tuple[int, int, int], List[Tuple[int, int, int]], int, str, None] = 'random'
 ):
     """
     Draws the given bounding boxes into the given image.
     :param image: The image to draw in
     :param bounding_boxes: The bounding boxes to draw. A tensor of shape (nBoxes, 4).
                            Each bounding box is (top, left, bottom, right).
-    :param colors: The colors to use. If None, black is used. Uses cycling for more boxes than colors.
+    :param color: The colors to use. If None, black is used. Uses cycling for more boxes than colors.
     """
+    bounding_boxes = bounding_boxes.clone()
     # scale box to int position
     if bounding_boxes.dtype == torch.float32:
         bounding_boxes[:, 0] *= image.shape[0]
@@ -34,18 +35,21 @@ def draw_boxes(
     if len(image.shape) == 3 and image.shape[-1] == 4:
         image = image[:, :, 0:3]
 
-    if not colors:
-        colors = [0.0]
-    elif colors == 'random':
+    if not color:
+        color = [0.0]
+    elif color == 'random':
         pass
-    elif not isinstance(colors, list):
-        colors = [colors]
+    elif not isinstance(color, list):
+        color = [color]
 
     for index, box in enumerate(bounding_boxes):
-        if isinstance(colors, list):
-            color = colors[index % len(colors)]
+        if isinstance(color, list):
+            c = color[index % len(color)]
         else:
-            color = (torch.rand(3) * 255).to(torch.int8)
+            c = (torch.rand(3) * 255).to(torch.int8)
+
+        if isinstance(c, tuple):
+            c = torch.tensor(c)
 
         # normalize box points
         top = min(max(box[0], 0), image.shape[0]-1)
@@ -54,7 +58,7 @@ def draw_boxes(
         right = min(max(box[3], 0), image.shape[1]-1)
 
         # draw box
-        image[top, left:right] = color  # draw top line
-        image[bot, left:right] = color  # draw bottom line
-        image[top:bot, left] = color  # draw left line
-        image[top:bot, right] = color  # draw right line
+        image[top, left:right] = c  # draw top line
+        image[bot, left:right] = c  # draw bottom line
+        image[top:bot, left] = c  # draw left line
+        image[top:bot, right] = c  # draw right line

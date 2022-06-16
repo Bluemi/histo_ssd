@@ -1,10 +1,10 @@
 """
 Defines functions to create and mutate bounding boxes.
 
-TLBR-Format:
+tlbr-Format:
     Top-Left-Bottom-Right-Format: Bounding Boxes are saved as (top, left, bottom, right). Each coordinate is normalized
     in respect to the image size.
-YXHW-Format:
+yxhw-Format:
     Y-X-Height-Width: Bounding Boxes are saved as (x-position, y-position, height, width). Each coordinate is normalized
     in respect to the image size.
 """
@@ -13,12 +13,22 @@ import math
 from typing import List, Union, Tuple
 
 
+def create_random_boxes(num_boxes: int) -> torch.Tensor:
+    """
+    Creates a batch of random bounding boxes with the shape (num_boxes, 4) in tlbr-format.
+
+    :param num_boxes: The number of boxes to generate
+    """
+    boxes = torch.rand((num_boxes, 2)) / 2.0
+    return torch.stack((boxes, boxes + torch.rand((num_boxes, 2)) / 2.0), dim=1).reshape((num_boxes, 4))
+
+
 def create_anchor_boxes(
         shape: Union[torch.Tensor, Tuple[int, int]], scales: List, ratios: List,
         device: Union[torch.device, str, None] = None
 ) -> torch.Tensor:
     """
-    Creates anchor boxes centered on each point in shape. Anchor Boxes are in TLBR-format.
+    Creates anchor boxes centered on each point in shape. Anchor Boxes are in tlbr-format.
 
     :param shape: One anchor box is created for every pixel in the given shape.
     :param scales: The scales for the anchor boxes
@@ -59,3 +69,36 @@ def create_anchor_boxes(
     offsets = offsets.reshape((offsets.shape[0], 2, 2))
     anchor_boxes = torch.add(center_points, offsets)
     return anchor_boxes
+
+
+def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+    """
+    Calculates the intersection over union for a batch of bounding boxes in tlbr-format.
+
+    :param boxes1: First set of bounding boxes of shape (N, 4)
+    :param boxes2: Second set of bounding boxes of shape (M, 4)
+    :return: A tensor of shape (N,M) containing the intersection over unions. IoU[i][j] is the IoU of the i-th box of
+             the first argument and the j-th box of the second argument.
+    """
+    def _area_of_boxes(boxes):
+        return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+
+    def _area_of_intersections(tl, br):
+        inters = br - tl
+        return inters[:, :, 0] * inters[:, :, 1]
+
+    # shape (N, M, 2)
+    top_left = torch.max(boxes1[:, None, :2], boxes2[:, :2])
+    bottom_right = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
+
+    # find out invalid intersection areas
+    invalid_mask = 1.0 - torch.logical_or(
+        torch.gt(top_left[:, :, 0], bottom_right[:, :, 0]),  # top > bottom -> invalid
+        torch.gt(top_left[:, :, 1], bottom_right[:, :, 1])   # left > right -> invalid
+    ).to(torch.float)
+
+    boxes1_areas = _area_of_boxes(boxes1)
+    boxes2_areas = _area_of_boxes(boxes2)
+    intersection_areas = _area_of_intersections(top_left, bottom_right)
+
+    return torch.abs(invalid_mask * intersection_areas / (boxes1_areas[:, None] + boxes2_areas - intersection_areas))
