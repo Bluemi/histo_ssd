@@ -1,0 +1,60 @@
+from typing import Union, List, NewType, Tuple
+
+import torch
+from matplotlib import pyplot as plt
+
+Color = NewType('Color', Tuple[int, int, int])
+
+
+def show_image(image):
+    plt.imshow(image)
+    plt.show()
+
+
+def draw_boxes(
+        image: torch.Tensor, bounding_boxes: torch.Tensor,
+        colors: Union[Color, List[Color], int, str, None] = 'random'
+):
+    """
+    Draws the given bounding boxes into the given image.
+    :param image: The image to draw in
+    :param bounding_boxes: The bounding boxes to draw. A tensor of shape (nBoxes, 4).
+                           Each bounding box is (top, left, bottom, right).
+    :param colors: The colors to use. If None, black is used. Uses cycling for more boxes than colors.
+    """
+    # scale box to int position
+    if bounding_boxes.dtype == torch.float32:
+        bounding_boxes[:, 0] *= image.shape[0]
+        bounding_boxes[:, 2] *= image.shape[0]
+        bounding_boxes[:, 1] *= image.shape[1]
+        bounding_boxes[:, 3] *= image.shape[1]
+        bounding_boxes = bounding_boxes.to(torch.int)
+
+    # remove alpha channel
+    if len(image.shape) == 3 and image.shape[-1] == 4:
+        image = image[:, :, 0:3]
+
+    if not colors:
+        colors = [0.0]
+    elif colors == 'random':
+        pass
+    elif not isinstance(colors, list):
+        colors = [colors]
+
+    for index, box in enumerate(bounding_boxes):
+        if isinstance(colors, list):
+            color = colors[index % len(colors)]
+        else:
+            color = (torch.rand(3) * 255).to(torch.int8)
+
+        # normalize box points
+        top = min(max(box[0], 0), image.shape[0]-1)
+        bot = min(max(box[2], 0), image.shape[0]-1)
+        left = min(max(box[1], 0), image.shape[1]-1)
+        right = min(max(box[3], 0), image.shape[1]-1)
+
+        # draw box
+        image[top, left:right] = color  # draw top line
+        image[bot, left:right] = color  # draw bottom line
+        image[top:bot, left] = color  # draw left line
+        image[top:bot, right] = color  # draw right line
