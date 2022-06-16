@@ -1,8 +1,12 @@
 """
 Defines functions to create and mutate bounding boxes.
 
-TLBR-Format: Top-Left-Bottom-Right-Format: Bounding Boxes are saved as (top, left, bottom, right)
-YXHW-Format: Y-X-Height-Width: Bounding Boxes are saved as (x-position, y-position, height, width)
+TLBR-Format:
+    Top-Left-Bottom-Right-Format: Bounding Boxes are saved as (top, left, bottom, right). Each coordinate is normalized
+    in respect to the image size.
+YXHW-Format:
+    Y-X-Height-Width: Bounding Boxes are saved as (x-position, y-position, height, width). Each coordinate is normalized
+    in respect to the image size.
 """
 import torch
 import math
