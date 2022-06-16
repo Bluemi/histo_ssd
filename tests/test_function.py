@@ -19,10 +19,11 @@ def main():
 
     # profile()
 
-    boxes1 = create_random_boxes(NUM_SAMPLES1)
-    boxes2 = create_random_boxes(NUM_SAMPLES2)
+    boxes1 = create_random_boxes(NUM_SAMPLES1, device='cuda')
+    boxes2 = create_random_boxes(NUM_SAMPLES2, device='cuda')
 
     clock = Clock()
+    clock.start()
     result_own = intersection_over_union(boxes1, boxes2)
     clock.stop_and_print('own time: {} sec')
 

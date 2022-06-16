@@ -13,14 +13,14 @@ import math
 from typing import List, Union, Tuple
 
 
-def create_random_boxes(num_boxes: int) -> torch.Tensor:
+def create_random_boxes(num_boxes: int, device: str or None = None) -> torch.Tensor:
     """
     Creates a batch of random bounding boxes with the shape (num_boxes, 4) in tlbr-format.
 
     :param num_boxes: The number of boxes to generate
     """
-    boxes = torch.rand((num_boxes, 2)) / 2.0
-    return torch.stack((boxes, boxes + torch.rand((num_boxes, 2)) / 2.0), dim=1).reshape((num_boxes, 4))
+    boxes = torch.rand((num_boxes, 2), device=device) / 2.0
+    return torch.stack((boxes, boxes + torch.rand((num_boxes, 2), device=device) / 2.0), dim=1).reshape((num_boxes, 4))
 
 
 def create_anchor_boxes(
