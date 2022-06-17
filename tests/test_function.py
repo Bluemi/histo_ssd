@@ -1,12 +1,13 @@
 import sys
 
 import torch
-import cProfile
 
 from utils.bounding_boxes import create_random_boxes, intersection_over_union
+# noinspection PyUnresolvedReferences
 from skimage.io import imread
 
 from utils.clock import Clock
+# noinspection PyUnresolvedReferences
 from utils.funcs import draw_boxes, show_image
 
 NUM_SAMPLES1 = 5200
@@ -48,8 +49,7 @@ def profile():
     # ------------------------
     pr.disable()
     s = io.StringIO()
-    sortby = SortKey.CUMULATIVE
-    ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
     ps.print_stats()
     print(s.getvalue())
 
