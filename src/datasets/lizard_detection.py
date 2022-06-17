@@ -252,7 +252,7 @@ class LizardDetectionDataset(Dataset):
             position: The position of a snapshot
         Returns:
             The bounding box in form (y1, x1, y2, x2) where x and y coordinates are subtracted with the snapshot
-            position.
+            position. The resulting bounding box is in tlbr-format.
         """
         return np.array([
             bounding_box[0] - position[0],  # y1
