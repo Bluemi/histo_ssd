@@ -128,3 +128,53 @@ def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch
     intersection_areas = _area_of_intersections(top_left, bottom_right)
 
     return torch.abs(invalid_mask * intersection_areas / (boxes1_areas[:, None] + boxes2_areas - intersection_areas))
+
+
+def assign_anchor_to_ground_truth_boxes(
+        anchor_boxes: torch.Tensor, ground_truth: torch.Tensor, device='cpu', iou_threshold=0.5
+) -> torch.Tensor:
+    """
+    Given is a batch of anchor boxes with shape (A, 4) and a batch of ground_truth boxes with shape (B, 4).
+    Returns a mapping of shape (A,). The i-th entry in the result is the index of the assigned ground_truth box for
+    the i-th anchor box. The given indices are between 0 <= index < B.
+
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#assigning-ground-truth-bounding-boxes-to-anchor-boxes
+
+    :param anchor_boxes: A batch of anchor boxes with shape (A, 4)
+    :param ground_truth: A batch of ground truth boxes with shape (B, 4)
+    """
+    num_anchors, num_gt_boxes = anchor_boxes.shape[0], ground_truth.shape[0]
+    # Element x_ij in the i-th row and j-th column is the IoU of the anchor
+    # box i and the ground-truth bounding box j
+    jaccard = intersection_over_union(anchor_boxes, ground_truth)
+    # Initialize the tensor to hold the assigned ground-truth bounding box for
+    # each anchor
+    anchors_bbox_map = torch.full((num_anchors,), -1, dtype=torch.long, device=device)
+    # Assign ground-truth bounding boxes according to the threshold
+    max_ious, indices = torch.max(jaccard, dim=1)
+    anc_i = torch.nonzero(max_ious >= iou_threshold).reshape(-1)
+    box_j = indices[max_ious >= iou_threshold]
+    anchors_bbox_map[anc_i] = box_j
+    col_discard = torch.full((num_anchors,), -1)
+    row_discard = torch.full((num_gt_boxes,), -1)
+    for _ in range(num_gt_boxes):
+        max_idx = torch.argmax(jaccard)  # Find the largest IoU
+        box_idx = (max_idx % num_gt_boxes).long()
+        anc_idx = (max_idx / num_gt_boxes).long()
+        anchors_bbox_map[anc_idx] = box_idx
+        jaccard[:, box_idx] = col_discard
+        jaccard[anc_idx, :] = row_discard
+    return anchors_bbox_map
+
+
+def offset_boxes(anchors: torch.Tensor, assigned_bb: torch.Tensor, eps=1e-6):
+    """
+    Transform for anchor box offsets.
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
+    """
+    c_anc = tlbr_to_yxhw(anchors)
+    c_assigned_bb = tlbr_to_yxhw(assigned_bb)
+    offset_xy = 10 * (c_assigned_bb[:, :2] - c_anc[:, :2]) / c_anc[:, 2:]
+    offset_wh = 5 * torch.log(eps + c_assigned_bb[:, 2:] / c_anc[:, 2:])
+    offset = torch.cat([offset_xy, offset_wh], dim=1)
+    return offset
