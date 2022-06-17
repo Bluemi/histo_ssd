@@ -13,7 +13,33 @@ import math
 from typing import List, Union, Tuple
 
 
-def create_random_boxes(num_boxes: int, device: str or None = None) -> torch.Tensor:
+def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
+    """
+    Converts a batch of boxes from tlbr to yxhw format.
+
+    :param boxes: The boxes to convert with shape (N, 4)
+    """
+    y = (boxes[:, 0] + boxes[:, 2]) / 2.0
+    x = (boxes[:, 1] + boxes[:, 3]) / 2.0
+    h = boxes[:, 2] - boxes[:, 0]
+    w = boxes[:, 3] - boxes[:, 1]
+    return torch.stack((y, x, h, w), dim=1)
+
+
+def yxhw_to_tlbr(boxes: torch.Tensor) -> torch.Tensor:
+    """
+    Converts a batch of boxes from yxhw to tlbr format.
+
+    :param boxes: The boxes to convert with shape (N, 4)
+    """
+    t = boxes[:, 0] - boxes[:, 2] / 2.0
+    l = boxes[:, 1] - boxes[:, 3] / 2.0
+    b = boxes[:, 0] + boxes[:, 2] / 2.0
+    r = boxes[:, 1] + boxes[:, 3] / 2.0
+    return torch.stack((t, l, b, r), dim=1)
+
+
+def generate_random_boxes(num_boxes: int, device: str or None = None) -> torch.Tensor:
     """
     Creates a batch of random bounding boxes with the shape (num_boxes, 4) in tlbr-format.
 

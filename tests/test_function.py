@@ -2,7 +2,7 @@ import sys
 
 import torch
 
-from utils.bounding_boxes import create_random_boxes, intersection_over_union
+from utils.bounding_boxes import generate_random_boxes, intersection_over_union, tlbr_to_yxhw, yxhw_to_tlbr
 # noinspection PyUnresolvedReferences
 from skimage.io import imread
 
@@ -10,28 +10,21 @@ from utils.clock import Clock
 # noinspection PyUnresolvedReferences
 from utils.funcs import draw_boxes, show_image
 
-NUM_SAMPLES1 = 5200
-NUM_SAMPLES2 = 5500
+NUM_SAMPLES1 = 2
 torch.set_printoptions(2)
 
 
 def main():
-    # image = torch.tensor(imread('res/black1024x1024.png'))
-
     # profile()
 
-    boxes1 = create_random_boxes(NUM_SAMPLES1, device='cuda')
-    boxes2 = create_random_boxes(NUM_SAMPLES2, device='cuda')
+    boxes = torch.tensor([[0, 0, 1, 1], [2, 2, 3, 4]], dtype=torch.float)
 
-    clock = Clock()
-    clock.start()
-    result_own = intersection_over_union(boxes1, boxes2)
-    clock.stop_and_print('own time: {} sec')
+    yxhw = tlbr_to_yxhw(boxes)
+    tlbr = yxhw_to_tlbr(yxhw)
 
-    print('\nresult_own')
-    print(result_own)
-
-    # show_image(image)
+    print(boxes)
+    print(yxhw)
+    print(tlbr)
 
 
 def profile():
@@ -42,8 +35,8 @@ def profile():
     pr = cProfile.Profile()
     pr.enable()
 
-    boxes1 = create_random_boxes(NUM_SAMPLES1)
-    boxes2 = create_random_boxes(NUM_SAMPLES2)
+    boxes1 = generate_random_boxes(NUM_SAMPLES1)
+    boxes2 = generate_random_boxes(NUM_SAMPLES1+1000)
     # ------------------------
     intersection_over_union(boxes1, boxes2)
     # ------------------------
