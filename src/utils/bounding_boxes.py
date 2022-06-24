@@ -39,14 +39,21 @@ def yxhw_to_tlbr(boxes: torch.Tensor) -> torch.Tensor:
     return torch.stack((t, l, b, r), dim=1)
 
 
-def generate_random_boxes(num_boxes: int, device: str or None = None) -> torch.Tensor:
+def generate_random_boxes(
+        num_boxes: int, min_size: float = 0.1, max_size: float = 1.0, device: str or None = None
+) -> torch.Tensor:
     """
     Creates a batch of random bounding boxes with the shape (num_boxes, 4) in tlbr-format.
 
     :param num_boxes: The number of boxes to generate
+    :param min_size: The minimal size for a bounding box
+    :param max_size: The maximal size for a bounding box
+    :param device: The device the bounding boxes are created on
     """
-    boxes = torch.rand((num_boxes, 2), device=device) / 2.0
-    return torch.stack((boxes, boxes + torch.rand((num_boxes, 2), device=device) / 2.0), dim=1).reshape((num_boxes, 4))
+    center = torch.rand((num_boxes, 2), device=device)
+    height_width = torch.rand((num_boxes, 2), device=device) * (max_size - min_size) + min_size
+    boxes = torch.stack((center, height_width), dim=1).reshape((num_boxes, 4))
+    return yxhw_to_tlbr(boxes)
 
 
 def create_anchor_boxes(
@@ -136,7 +143,8 @@ def assign_anchor_to_ground_truth_boxes(
     """
     Given is a batch of anchor boxes with shape (A, 4) and a batch of ground_truth boxes with shape (B, 4).
     Returns a mapping of shape (A,). The i-th entry in the result is the index of the assigned ground_truth box for
-    the i-th anchor box. The given indices are between 0 <= index < B.
+    the i-th anchor box. The given indices are between 0 <= index < B. The value -1 indicates, that this anchor box
+    could not be assigned.
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#assigning-ground-truth-bounding-boxes-to-anchor-boxes
 

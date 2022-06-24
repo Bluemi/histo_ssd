@@ -3,7 +3,7 @@ import sys
 import torch
 
 from utils.bounding_boxes import generate_random_boxes, intersection_over_union, tlbr_to_yxhw, yxhw_to_tlbr, \
-    assign_anchor_to_ground_truth_boxes
+    assign_anchor_to_ground_truth_boxes, create_anchor_boxes
 # noinspection PyUnresolvedReferences
 from skimage.io import imread
 
@@ -15,43 +15,26 @@ NUM_SAMPLES1 = 2
 torch.set_printoptions(2)
 
 
-def assign_anchor_to_bbox(ground_truth, anchors, device, iou_threshold=0.5):
-    """Assign closest ground-truth bounding boxes to anchor boxes."""
-    num_anchors, num_gt_boxes = anchors.shape[0], ground_truth.shape[0]
-    # Element x_ij in the i-th row and j-th column is the IoU of the anchor
-    # box i and the ground-truth bounding box j
-    jaccard = intersection_over_union(anchors, ground_truth)
-    # Initialize the tensor to hold the assigned ground-truth bounding box for
-    # each anchor
-    anchors_bbox_map = torch.full((num_anchors,), -1, dtype=torch.long,
-                                  device=device)
-    # Assign ground-truth bounding boxes according to the threshold
-    max_ious, indices = torch.max(jaccard, dim=1)
-    anc_i = torch.nonzero(max_ious >= iou_threshold).reshape(-1)
-    box_j = indices[max_ious >= iou_threshold]
-    anchors_bbox_map[anc_i] = box_j
-    col_discard = torch.full((num_anchors,), -1)
-    row_discard = torch.full((num_gt_boxes,), -1)
-    for _ in range(num_gt_boxes):
-        max_idx = torch.argmax(jaccard)  # Find the largest IoU
-        box_idx = (max_idx % num_gt_boxes).long()
-        anc_idx = (max_idx / num_gt_boxes).long()
-        anchors_bbox_map[anc_idx] = box_idx
-        jaccard[:, box_idx] = col_discard
-        jaccard[anc_idx, :] = row_discard
-    return anchors_bbox_map
-
-
 def main():
+    image_src = torch.tensor(imread('res/black512.png'))
     # profile()
+    anchor_boxes = create_anchor_boxes((4, 4), scales=[0.15, 0.19], ratios=[1.0, 0.5, 2.0])
 
-    anchor_boxes = generate_random_boxes(7)
-    ground_truth_boxes = generate_random_boxes(5)
+    while True:
+        ground_truth_boxes = generate_random_boxes(1, min_size=0.1, max_size=0.2)
 
-    assign_anchor_to_ground_truth_boxes(anchor_boxes, ground_truth_boxes)
+        anchor_boxes = anchor_boxes.reshape((-1, 4))
 
-    # result = assign_anchor_to_bbox(ground_truth_boxes, anchor_boxes, device='cpu')
-    # print(result)
+        image = image_src.clone()
+        draw_boxes(image, anchor_boxes)
+        draw_boxes(image, ground_truth_boxes, color=(255, 255, 255))
+
+        result = assign_anchor_to_ground_truth_boxes(anchor_boxes, ground_truth_boxes)
+        print(result.shape)
+        print(result)
+        print(sorted(list(filter(lambda x: x != -1, result.numpy()))))
+
+        show_image(image)
 
 
 def profile():
