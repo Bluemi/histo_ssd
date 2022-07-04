@@ -12,6 +12,8 @@ import torch
 import math
 from typing import List, Union, Tuple
 
+from utils.funcs import debug
+
 
 def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
     """
@@ -186,3 +188,42 @@ def offset_boxes(anchors: torch.Tensor, assigned_bb: torch.Tensor, eps=1e-6):
     offset_wh = 5 * torch.log(eps + c_assigned_bb[:, 2:] / c_anc[:, 2:])
     offset = torch.cat([offset_xy, offset_wh], dim=1)
     return offset
+
+
+def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """
+    Label anchor boxes using ground-truth bounding boxes.
+
+    :param anchors: List of anchor boxes with shape (NUM_ANCHOR_BOXES, 4) in tlbr-format.
+    :param labels: Batch of ground truth boxes with shape (BATCH_SIZE, NUM_BOXES, 5).
+                   The 5 comes from (classlabel, t, l, b, r).
+
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
+    """
+    batch_size, anchors = labels.shape[0], anchors.squeeze(0)
+    batch_offset, batch_mask, batch_class_labels = [], [], []
+    device, num_anchors = anchors.device, anchors.shape[0]
+
+    debug(batch_size+(1-2))
+    for i in range(batch_size):
+        label = labels[i, :, :]
+        anchors_bbox_map = assign_anchor_to_ground_truth_boxes(anchors, label[:, 1:], device)
+        bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, 4)
+        # Initialize class labels and assigned bounding box coordinates with zeros
+        class_labels = torch.zeros(num_anchors, dtype=torch.long, device=device)
+        assigned_bb = torch.zeros((num_anchors, 4), dtype=torch.float32, device=device)
+        # Label classes of anchor boxes using their assigned ground-truth bounding boxes.
+        # If an anchor box is not assigned any, we label its class as background (the value remains zero)
+        indices_true = torch.nonzero(anchors_bbox_map >= 0)
+        bb_idx = anchors_bbox_map[indices_true]
+        class_labels[indices_true] = label[bb_idx, 0].long() + 1
+        assigned_bb[indices_true] = label[bb_idx, 1:]
+        # Offset transformation
+        offset = offset_boxes(anchors, assigned_bb) * bbox_mask
+        batch_offset.append(offset.reshape(-1))
+        batch_mask.append(bbox_mask.reshape(-1))
+        batch_class_labels.append(class_labels)
+    bbox_offset = torch.stack(batch_offset)
+    bbox_mask = torch.stack(batch_mask)
+    class_labels = torch.stack(batch_class_labels)
+    return bbox_offset, bbox_mask, class_labels

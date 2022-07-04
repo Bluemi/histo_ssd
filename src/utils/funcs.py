@@ -1,3 +1,5 @@
+import inspect
+import sys
 from typing import Union, List, NewType, Tuple
 
 import torch
@@ -62,3 +64,16 @@ def draw_boxes(
         image[bot, left:right] = c  # draw bottom line
         image[top:bot, left] = c  # draw left line
         image[top:bot, right] = c  # draw right line
+
+
+def debug(arg):
+    """
+    Print name of arg and arg.
+    :param arg: The argument to print
+    """
+    # noinspection PyUnresolvedReferences,PyProtectedMember
+    fr = sys._getframe(1)  # type: frame
+    code = inspect.getsource(fr).split('\n')
+    line = code[fr.f_lineno - fr.f_code.co_firstlineno]
+    varname = line.partition('debug(')[2].rpartition(')')[0]
+    print('{}: {}'.format(varname, arg))

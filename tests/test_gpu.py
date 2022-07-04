@@ -1,13 +1,9 @@
-import torch
-
-
-torch.set_printoptions(2)
+from utils.funcs import debug
 
 
 def main():
-    a = torch.tensor([1, 2, 3], device='cuda:0')
-    print(a.device)
-    print(type(a.device))
+    my_var = [1, 2, 3]  # this is a comment
+    debug(my_var)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import sys
 import torch
 
 from utils.bounding_boxes import generate_random_boxes, intersection_over_union, tlbr_to_yxhw, yxhw_to_tlbr, \
-    assign_anchor_to_ground_truth_boxes, create_anchor_boxes
+    assign_anchor_to_ground_truth_boxes, create_anchor_boxes, multibox_target
 # noinspection PyUnresolvedReferences
 from skimage.io import imread
 
@@ -17,24 +17,19 @@ torch.set_printoptions(2)
 
 def main():
     image_src = torch.tensor(imread('res/black512.png'))
-    # profile()
-    anchor_boxes = create_anchor_boxes((4, 4), scales=[0.15, 0.19], ratios=[1.0, 0.5, 2.0])
 
-    while True:
-        ground_truth_boxes = generate_random_boxes(1, min_size=0.1, max_size=0.2)
+    anchor_boxes = create_anchor_boxes((10, 10), scales=[0.1, 0.2], ratios=[1.0, 0.5, 2.0])
+    anchor_boxes = anchor_boxes.reshape((-1, 4))
+    ground_truth = torch.tensor([
+        [0, 0.1, 0.1, 0.3, 0.3],
+        [1, 0.4, 0.4, 0.5, 0.5],
+    ])
 
-        anchor_boxes = anchor_boxes.reshape((-1, 4))
+    # draw_boxes(image_src, bounding_boxes=anchor_boxes, color=128)
+    # draw_boxes(image_src, bounding_boxes=ground_truth[:, 1:], color=255)
+    # show_image(image_src)
 
-        image = image_src.clone()
-        draw_boxes(image, anchor_boxes)
-        draw_boxes(image, ground_truth_boxes, color=(255, 255, 255))
-
-        result = assign_anchor_to_ground_truth_boxes(anchor_boxes, ground_truth_boxes)
-        print(result.shape)
-        print(result)
-        print(sorted(list(filter(lambda x: x != -1, result.numpy()))))
-
-        show_image(image)
+    multibox_target(anchor_boxes.unsqueeze(0), ground_truth.unsqueeze(0))
 
 
 def profile():
