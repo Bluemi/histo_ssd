@@ -9,7 +9,7 @@ from skimage.io import imread
 
 from utils.clock import Clock
 # noinspection PyUnresolvedReferences
-from utils.funcs import draw_boxes, show_image
+from utils.funcs import draw_boxes, show_image, debug
 
 NUM_SAMPLES1 = 2
 torch.set_printoptions(2)
@@ -24,12 +24,15 @@ def main():
         [0, 0.1, 0.1, 0.3, 0.3],
         [1, 0.4, 0.4, 0.5, 0.5],
     ])
+    ground_truth[:, 1:] += ((torch.randn((2, 4)) - 0.5) * 0.02)
+    debug(ground_truth)
 
-    # draw_boxes(image_src, bounding_boxes=anchor_boxes, color=128)
-    # draw_boxes(image_src, bounding_boxes=ground_truth[:, 1:], color=255)
-    # show_image(image_src)
+    draw_boxes(image_src, bounding_boxes=anchor_boxes, color=128)
+    draw_boxes(image_src, bounding_boxes=ground_truth[:, 1:], color=255)
+    show_image(image_src)
 
-    multibox_target(anchor_boxes.unsqueeze(0), ground_truth.unsqueeze(0))
+    _, _, labels = multibox_target(anchor_boxes.unsqueeze(0), ground_truth.unsqueeze(0))
+    debug(labels)
 
 
 def profile():

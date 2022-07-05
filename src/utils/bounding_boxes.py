@@ -180,6 +180,8 @@ def assign_anchor_to_ground_truth_boxes(
 def offset_boxes(anchors: torch.Tensor, assigned_bb: torch.Tensor, eps=1e-6):
     """
     Transform for anchor box offsets.
+    TODO: replace magic numbers with arguments
+
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
     """
     c_anc = tlbr_to_yxhw(anchors)
@@ -190,12 +192,31 @@ def offset_boxes(anchors: torch.Tensor, assigned_bb: torch.Tensor, eps=1e-6):
     return offset
 
 
+def offset_inverse(anchors: torch.Tensor, offset_preds: torch.Tensor) -> torch.Tensor:
+    """
+    Predict bounding boxes based on anchor boxes with predicted offsets.
+    TODO: replace magic numbers with arguments
+
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
+    """
+    anc = tlbr_to_yxhw(anchors)
+    pred_bbox_xy = (offset_preds[:, :2] * anc[:, 2:] / 10) + anc[:, :2]
+    pred_bbox_wh = torch.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
+    pred_bbox = torch.cat((pred_bbox_xy, pred_bbox_wh), dim=1)
+    predicted_bbox = yxhw_to_tlbr(pred_bbox)
+    return predicted_bbox
+
+
 def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Label anchor boxes using ground-truth bounding boxes.
+    Label anchor boxes using ground-truth bounding boxes. Returns a tuple with three elements:
+    1. The calculated offsets for assigned anchor boxes with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
+    2. A mask of shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4), setting all negative examples to 0.0 and all positives
+       examples to 1.0
+    3. The class labels of the anchor boxes with shape (BATCH_SIZE, NUM_ANCHOR_BOXES)
 
     :param anchors: List of anchor boxes with shape (NUM_ANCHOR_BOXES, 4) in tlbr-format.
-    :param labels: Batch of ground truth boxes with shape (BATCH_SIZE, NUM_BOXES, 5).
+    :param labels: Batch of ground truth boxes with shape (BATCH_SIZE, NUM_GT_BOXES, 5).
                    The 5 comes from (classlabel, t, l, b, r).
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
@@ -204,7 +225,6 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
     batch_offset, batch_mask, batch_class_labels = [], [], []
     device, num_anchors = anchors.device, anchors.shape[0]
 
-    debug(batch_size+(1-2))
     for i in range(batch_size):
         label = labels[i, :, :]
         anchors_bbox_map = assign_anchor_to_ground_truth_boxes(anchors, label[:, 1:], device)
@@ -227,3 +247,69 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
     bbox_mask = torch.stack(batch_mask)
     class_labels = torch.stack(batch_class_labels)
     return bbox_offset, bbox_mask, class_labels
+
+
+def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_threshold: float) -> torch.Tensor:
+    """
+    Removes bounding boxes with non-maximum score.
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
+
+    :param boxes: The predicted boxes with shape (NUM_BOXES, 4)
+    :param scores: The scores of the given boxes with shape (NUM_BOXES,)
+    """
+    b = torch.argsort(scores, dim=-1, descending=True)
+    keep = []  # Indices of predicted bounding boxes that will be kept
+    while b.numel() > 0:
+        i = b[0]
+        keep.append(i)
+        if b.numel() == 1:
+            break
+        iou = intersection_over_union(boxes[i, :].reshape(-1, 4), boxes[b[1:], :].reshape(-1, 4)).reshape(-1)
+        indices = torch.nonzero(iou <= iou_threshold).reshape(-1)
+        b = b[indices + 1]
+    return torch.tensor(keep, device=boxes.device)
+
+
+def multibox_detection(
+        cls_probs: torch.Tensor, offset_preds: torch.Tensor, anchors: torch.Tensor, nms_threshold: float = 0.5,
+        pos_threshold: float = 0.009999999
+) -> torch.Tensor:
+    """
+    Predict bounding boxes using non-maximum suppression.
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
+
+    Returns a tensor of shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 6).
+    The 6 comes from (predicted class label, confidence, top, left, bottom, right) where "predicted class label" is -1
+    for background.
+
+    :param cls_probs: The predicted class probabilities with shape (BATCH_SIZE, NUM_CLASSES, NUM_ANCHOR_BOXES)
+    :param offset_preds: The predicted offsets with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
+    :param anchors: The anchor boxes which was predicted with shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 4)
+    :param nms_threshold: The threshold nms uses to identify overlapping boxes.
+    :param pos_threshold: A threshold uses for to low confidences.
+    """
+    device, batch_size = cls_probs.device, cls_probs.shape[0]
+    anchors = anchors.squeeze(0)
+    num_classes, num_anchors = cls_probs.shape[1], cls_probs.shape[2]
+    out = []
+    for i in range(batch_size):
+        cls_prob, offset_pred = cls_probs[i], offset_preds[i].reshape(-1, 4)
+        conf, class_id = torch.max(cls_prob[1:], 0)
+        predicted_bb = offset_inverse(anchors, offset_pred)
+        keep = non_maximum_suppression(predicted_bb, conf, nms_threshold)
+        # Find all non-`keep` indices and set the class to background
+        all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)
+        combined = torch.cat((keep, all_idx))
+        uniques, counts = combined.unique(return_counts=True)
+        non_keep = uniques[counts == 1]
+        all_id_sorted = torch.cat((keep, non_keep))
+        class_id[non_keep] = -1
+        class_id = class_id[all_id_sorted]
+        conf, predicted_bb = conf[all_id_sorted], predicted_bb[all_id_sorted]
+        # Here `pos_threshold` is a threshold for positive (non-background) predictions
+        below_min_idx = (conf < pos_threshold)
+        class_id[below_min_idx] = -1
+        conf[below_min_idx] = 1 - conf[below_min_idx]
+        pred_info = torch.cat((class_id.unsqueeze(1), conf.unsqueeze(1), predicted_bb), dim=1)
+        out.append(pred_info)
+    return torch.stack(out)
