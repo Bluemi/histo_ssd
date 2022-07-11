@@ -5,3 +5,5 @@ numpy~=1.21.6
 Pillow~=9.1.0
 scikit-image
 scikit-image==0.18.3
+tqdm==4.64.0
+torchvision==0.12.0+cu113

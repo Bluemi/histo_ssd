@@ -6,13 +6,15 @@ TODO: rework transform bounding box
 """
 import random
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Callable
 
 import scipy.io as sio
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
+from tqdm import tqdm
+from torchvision.io import read_image
 
 
 AVOCADO_DATASET_LOCATION = Path('/data/ldap/histopathologic/original_read_only/Lizard')
@@ -20,10 +22,13 @@ LABELS_DIR = Path('labels/Labels')
 LABELS = ['Neutrophil', 'Epithelial', 'Lymphocyte', 'Plasma', 'Eosinophil', 'Connective tissue']
 
 
-def imread(image_path):
-    with Image.open(image_path) as image:
-        # noinspection PyTypeChecker
-        return np.array(image)
+def get_progress_func(show_progress: bool) -> Callable:
+    if show_progress:
+        progress_function = tqdm
+    else:
+        def progress_function(x):
+            return x
+    return progress_function
 
 
 class Snapshot:
@@ -57,23 +62,29 @@ class Snapshot:
 
 
 class LizardDetectionDataset(Dataset):
-    def __init__(self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, image_cache=None):
+    def __init__(
+            self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, max_boxes_per_snapshot: int,
+            image_cache=None
+    ):
         """
         Args:
             snapshots: List of snapshots for this dataset
             data_dir: The directory to search images and labels in. This directory should have the three subdirectories
                       "labels/Labels", "images1", "images2"
             image_size: The size of the images returned by __getitem__ as [height, width]
+            max_boxes_per_snapshot: The maximum number of bounding boxes per snapshot
             image_cache: The image cache to use. If None no image caching will be used.
         """
         self.snapshots = snapshots
         self.data_dir = data_dir
         self.image_size = image_size
         self.image_cache: Dict[Path, np.ndarray] or None = image_cache
+        self.max_boxes_per_snapshot = max_boxes_per_snapshot
 
     @staticmethod
     def from_datadir(
-        data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False
+        data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
+        show_progress: bool = False
     ):
         """
         Args:
@@ -82,14 +93,19 @@ class LizardDetectionDataset(Dataset):
             image_size: The size of the images returned by __getitem__ as [height, width]
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
             use_cache: Whether to keep loaded images in memory. Defaults to False.
+            show_progress: Whether to show loading progress with tqdm
         """
         # use image size as image stride, if no images stride provided
         image_stride = image_size if image_stride is None else image_stride
-        snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride)
+        snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride, show_progress)
+        max_boxes_per_snapshot = 0
+        for snapshot in snapshots:
+            max_boxes_per_snapshot = max(snapshot.bounding_boxes.shape[0], max_boxes_per_snapshot)
         return LizardDetectionDataset(
             snapshots=snapshots,
             data_dir=data_dir,
             image_size=image_size,
+            max_boxes_per_snapshot=max_boxes_per_snapshot,
             image_cache={} if use_cache else None,
         )
 
@@ -109,7 +125,9 @@ class LizardDetectionDataset(Dataset):
         )
 
     @staticmethod
-    def _define_snapshots(data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray) -> List[Snapshot]:
+    def _define_snapshots(
+            data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray, show_progress: bool
+    ) -> List[Snapshot]:
         """
         Returns a list of snapshots to use for this dataset. Images will be searched in '<data_dir>/images1/*.png' and
         '<data_dir>/images2/*.png'.
@@ -118,9 +136,9 @@ class LizardDetectionDataset(Dataset):
         image2_files = sorted([f for f in (data_dir / 'images2').iterdir() if str(f).endswith('.png')])
         image_files = image1_files + image2_files
 
-        # TODO: implement split
         subimages = []
-        for image_file in image_files:
+        progress_function = get_progress_func(show_progress)
+        for image_file in progress_function(image_files):
             subimages.extend(
                 LizardDetectionDataset._snapshots_from_image_file(data_dir, image_file, image_size, image_stride)
             )
@@ -152,9 +170,10 @@ class LizardDetectionDataset(Dataset):
                     bounding_boxes.append(transformed_bounding_box)
                     class_labels.append(label)
 
-            bounding_boxes = np.stack(bounding_boxes) if bounding_boxes else np.array([])
-            class_labels = np.stack(class_labels) if class_labels else np.array([])
-            snapshots.append(Snapshot(sample_name, image_dir, position.copy(), bounding_boxes, class_labels))
+            if bounding_boxes:
+                bounding_boxes = np.array(bounding_boxes)
+                class_labels = np.array(class_labels)
+                snapshots.append(Snapshot(sample_name, image_dir, position.copy(), bounding_boxes, class_labels))
 
             # move subimage to the right
             position[1] += image_stride[1]
@@ -193,12 +212,14 @@ class LizardDetectionDataset(Dataset):
                 snapshots=first_set,
                 data_dir=self.data_dir,
                 image_size=self.image_size,
+                max_boxes_per_snapshot=self.max_boxes_per_snapshot,
                 image_cache=self.image_cache,
             ),
             LizardDetectionDataset(
                 snapshots=second_set,
                 data_dir=self.data_dir,
                 image_size=self.image_size,
+                max_boxes_per_snapshot=self.max_boxes_per_snapshot,
                 image_cache=self.image_cache,
             ),
         )
@@ -226,16 +247,17 @@ class LizardDetectionDataset(Dataset):
         if self.image_cache is not None:
             image = self.image_cache.get(image_path)
             if image is None:
-                image = imread(str(image_path))
+                image = read_image(str(image_path))
                 self.image_cache[image_path] = image
         else:
-            image = imread(str(image_path))
+            image = read_image(str(image_path))
         return image
 
-    def get_subimage(self, snapshot) -> np.ndarray:
+    def get_subimage(self, snapshot) -> torch.Tensor:
         image_path = self.data_dir / snapshot.get_image_path()
         image = self.read_image(image_path)
         return image[
+            :,
             snapshot.position[0]:snapshot.position[0]+self.image_size[0],
             snapshot.position[1]:snapshot.position[1]+self.image_size[1]
         ]
@@ -278,38 +300,43 @@ class LizardDetectionDataset(Dataset):
             return False
         return True
 
+    def pad_join_boxes_and_labels(self, bounding_boxes: np.ndarray, class_labels: np.ndarray) -> np.ndarray:
+        """
+        Joins the given bounding_boxes with shape [N, 4] and class_labels with shape [N,] to a new tensor with shape
+        [N, 5] so each sample has elements (class_label, top, left, bottom, right).
+        Also pads with (-1, 0, 0, 0, 0) samples to create shape of [max_boxes_per_snapshot, 5].
+
+        :param bounding_boxes: Bounding boxes of shape [N, 4]
+        :param class_labels: Class labels of shape [N,]
+        :return: Padded and joint bounding boxes and labels with shape [max_boxes_per_snapshot, 5]
+        """
+        assert class_labels.shape[0] > 0
+        assert class_labels.shape[0] == bounding_boxes.shape[0]
+
+        # join labels and boxes
+        joint = np.concatenate((class_labels.reshape(-1, 1), bounding_boxes), axis=1)
+
+        # pad
+        add = self.max_boxes_per_snapshot - joint.shape[0]
+        pad = np.zeros((add, 5), dtype=float)
+        pad[:, 0] = -1
+        return np.concatenate((joint, pad), axis=0)
+
     def __getitem__(self, index) -> Dict[str, Any]:
         """
         Gets the dataset sample with the given index. Every sample contains N instances of nuclei.
         A sample is a dictionary with the following keys:
           - image: An image with shape [height, width, 3]
-          - labels: A List[N] of class numbers 0 <= label <= 5
-          - boxes: A List[N, 4] containing the bounding boxes of the sample as [top, left, bottom, right]
+          - boxes: A List[N, 5] containing the bounding boxes with corresponding label.
+                   Each sample as the form [class_label, top, left, bottom, right] with 0 <= class_label <= 5.
         """
         snapshot = self.snapshots[index]
         subimage = self.get_subimage(snapshot)
+        labeled_boxes = self.pad_join_boxes_and_labels(snapshot.bounding_boxes, snapshot.class_labels)
         return {
             'image': subimage,
-            'boxes': snapshot.bounding_boxes,
-            'labels': snapshot.class_labels,
+            'boxes': labeled_boxes,
         }
 
     def __len__(self):
         return len(self.snapshots)
-
-    @staticmethod
-    def collate_fn(batch):
-        images = []
-        boxes = []
-        labels = []
-        for sample in batch:
-            images.append(sample['image'])
-            boxes.append(sample['boxes'])
-            labels.append(sample['labels'])
-
-        images = torch.Tensor(np.stack(images))
-        return {
-            'image': images,
-            'boxes': boxes,
-            'labels': labels,
-        }
