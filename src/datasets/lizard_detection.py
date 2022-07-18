@@ -117,7 +117,10 @@ class LizardDetectionDataset(Dataset):
         )
 
     @staticmethod
-    def from_avocado(image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False):
+    def from_avocado(
+            image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
+            show_progress: bool = False
+    ):
         """
         Args:
             image_size: The size of the images returned by __getitem__ as [height, width]
@@ -129,6 +132,7 @@ class LizardDetectionDataset(Dataset):
             image_size=image_size,
             image_stride=image_stride,
             use_cache=use_cache,
+            show_progress=show_progress,
         )
 
     @staticmethod

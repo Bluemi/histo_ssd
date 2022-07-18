@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from determined.pytorch import DataLoader
 
-import datasets
 from datasets import LizardDetectionDataset
 from models import TinySSD
 from utils.bounding_boxes import multibox_target
@@ -20,7 +19,6 @@ def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
 
 
 def main():
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     device = 'cpu'
     net = TinySSD(num_classes=6)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
