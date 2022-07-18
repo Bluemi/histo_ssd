@@ -59,12 +59,14 @@ class DefaultTrial(PyTorchTrial):
         dataset = self.context.get_hparam('dataset')
         split_size = self.context.get_hparam('dataset_split_size')
         if dataset == 'lizard':
+            print('loading {}: '.format(dataset), end='', flush=True)
             dataset = LizardDetectionDataset.from_avocado(
                 image_size=np.array([224, 224]),
                 image_stride=np.array([224, 224]),
                 use_cache=True,
                 show_progress=False,
             )
+            print('Done', flush=True)
             return dataset.split(split_size)
 
     def _calc_loss(self, class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
