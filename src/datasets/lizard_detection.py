@@ -13,8 +13,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
+from torchvision import transforms
 from tqdm import tqdm
-from torchvision.io import read_image
 
 
 AVOCADO_DATASET_LOCATION = Path('/data/ldap/histopathologic/original_read_only/Lizard')
@@ -22,11 +22,17 @@ LABELS_DIR = Path('labels/Labels')
 LABELS = ['Neutrophil', 'Epithelial', 'Lymphocyte', 'Plasma', 'Eosinophil', 'Connective tissue']
 
 
+def imread(image_path):
+    with Image.open(image_path) as image:
+        # noinspection PyTypeChecker
+        return np.array(image)
+
+
 def get_progress_func(show_progress: bool) -> Callable:
     if show_progress:
         progress_function = tqdm
     else:
-        def progress_function(x):
+        def progress_function(x, **_kwargs):
             return x
     return progress_function
 
@@ -80,6 +86,7 @@ class LizardDetectionDataset(Dataset):
         self.image_size = image_size
         self.image_cache: Dict[Path, np.ndarray] or None = image_cache
         self.max_boxes_per_snapshot = max_boxes_per_snapshot
+        self.to_tensor = transforms.ToTensor()
 
     @staticmethod
     def from_datadir(
@@ -138,7 +145,7 @@ class LizardDetectionDataset(Dataset):
 
         subimages = []
         progress_function = get_progress_func(show_progress)
-        for image_file in progress_function(image_files):
+        for image_file in progress_function(image_files, desc='Loading Dataset: '):
             subimages.extend(
                 LizardDetectionDataset._snapshots_from_image_file(data_dir, image_file, image_size, image_stride)
             )
@@ -168,10 +175,12 @@ class LizardDetectionDataset(Dataset):
                 if LizardDetectionDataset._bounding_box_in_snapshot(position, image_size, bounding_box):
                     transformed_bounding_box = LizardDetectionDataset._transform_bounding_box(bounding_box, position)
                     bounding_boxes.append(transformed_bounding_box)
-                    class_labels.append(label)
+                    class_labels.append(label - 1)  # labels to 0 - 5
 
             if bounding_boxes:
-                bounding_boxes = np.array(bounding_boxes)
+                bounding_boxes = np.array(bounding_boxes, dtype=np.float32)
+                assert image_size[0] == image_size[1]
+                bounding_boxes /= float(image_size[0])  # scale to relative coordinates
                 class_labels = np.array(class_labels)
                 snapshots.append(Snapshot(sample_name, image_dir, position.copy(), bounding_boxes, class_labels))
 
@@ -247,19 +256,18 @@ class LizardDetectionDataset(Dataset):
         if self.image_cache is not None:
             image = self.image_cache.get(image_path)
             if image is None:
-                image = read_image(str(image_path))
+                image = imread(str(image_path))
                 self.image_cache[image_path] = image
         else:
-            image = read_image(str(image_path))
+            image = imread(str(image_path))
         return image
 
     def get_subimage(self, snapshot) -> torch.Tensor:
         image_path = self.data_dir / snapshot.get_image_path()
         image = self.read_image(image_path)
         return image[
-            :,
             snapshot.position[0]:snapshot.position[0]+self.image_size[0],
-            snapshot.position[1]:snapshot.position[1]+self.image_size[1]
+            snapshot.position[1]:snapshot.position[1]+self.image_size[1],
         ]
 
     def get_label_data(self, snapshot) -> Dict:
@@ -312,15 +320,17 @@ class LizardDetectionDataset(Dataset):
         """
         assert class_labels.shape[0] > 0
         assert class_labels.shape[0] == bounding_boxes.shape[0]
+        assert (class_labels >= 0).all()
+        assert (class_labels < len(LABELS)).all()
 
         # join labels and boxes
         joint = np.concatenate((class_labels.reshape(-1, 1), bounding_boxes), axis=1)
 
         # pad
         add = self.max_boxes_per_snapshot - joint.shape[0]
-        pad = np.zeros((add, 5), dtype=float)
+        pad = np.zeros((add, 5), dtype=np.float32)
         pad[:, 0] = -1
-        return np.concatenate((joint, pad), axis=0)
+        return np.concatenate((joint, pad), axis=0, dtype=np.float32)
 
     def __getitem__(self, index) -> Dict[str, Any]:
         """
@@ -334,7 +344,7 @@ class LizardDetectionDataset(Dataset):
         subimage = self.get_subimage(snapshot)
         labeled_boxes = self.pad_join_boxes_and_labels(snapshot.bounding_boxes, snapshot.class_labels)
         return {
-            'image': subimage,
+            'image': self.to_tensor(subimage),
             'boxes': labeled_boxes,
         }
 

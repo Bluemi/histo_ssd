@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 import cProfile
 
@@ -17,13 +18,17 @@ def main():
         show_progress=True,
     )
 
-    train, validation = dataset.split(0.8)
+    # train, validation = dataset.split(0.8)
 
-    data_loader = DataLoader(validation, batch_size=32)
+    data_loader = DataLoader(dataset, batch_size=32)
 
+    label_distribution = defaultdict(int)
     for batch in data_loader:
-        debug(batch['boxes'].shape)
-        debug(batch['image'].shape)
+        for sample in batch['boxes']:
+            for box in sample:
+                label = box[0].item()
+                label_distribution[label] += 1
+    print(label_distribution)
 
 
 def profile():
