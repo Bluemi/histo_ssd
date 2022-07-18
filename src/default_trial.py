@@ -17,7 +17,6 @@ class DefaultTrial(PyTorchTrial):
         self.context = context
 
         # the dataset is loaded at the start to make it possible to split it
-        self.dataset_name = self.context.get_hparam('dataset')
         self.train_dataset, self.validation_dataset = self._load_dataset()
 
         # Creates a feature vector

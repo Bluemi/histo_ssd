@@ -18,17 +18,24 @@ def main():
         show_progress=True,
     )
 
-    # train, validation = dataset.split(0.8)
+    train, validation = dataset.split(0.8)
 
-    data_loader = DataLoader(dataset, batch_size=32)
+    debug(len(train))
+    debug(len(validation))
+
+    data_loader = DataLoader(dataset, batch_size=64)
 
     label_distribution = defaultdict(int)
+    sample_counter = 0
     for batch in data_loader:
         for sample in batch['boxes']:
+            sample_counter += 1
             for box in sample:
                 label = box[0].item()
                 label_distribution[label] += 1
-    print(label_distribution)
+    for label in sorted(label_distribution.keys()):
+        print('{}: {}'.format(label, label_distribution[label]))
+    print('{} samples'.format(sample_counter))
 
 
 def profile():
