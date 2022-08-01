@@ -13,6 +13,9 @@ case "$1" in
 	r|cluster)
 		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create ./configs/test_tiny.yaml ./src
 		;;
+	b)
+		PYTHONPATH=./src ipython ./tests/test_banana.py
+		;;
 	*)
 		PYTHONPATH=./src python3 ./tests/test_function.py
 		;;

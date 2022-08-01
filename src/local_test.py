@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as functional
+from d2l.torch import d2l
 from determined.pytorch import DataLoader
 
 from datasets import LizardDetectionDataset
@@ -67,6 +68,7 @@ def main():
         return cls + bbox
 
     num_epochs = 30
+    timer = d2l.Timer()
 
     net = net.to(device)
     for epoch in range(num_epochs):
@@ -74,7 +76,11 @@ def main():
         # Sum of training accuracy, no. of examples in sum of training accuracy,
         # Sum of absolute error, no. of examples in sum of absolute error
         net.train()
+
+        metrics = [0.0] * 4
+
         for batch in train_data_loader:
+            timer.start()
             features = batch['image']
             target = batch['boxes']
             optimizer.zero_grad()
@@ -87,10 +93,16 @@ def main():
             l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
             l.mean().backward()
             optimizer.step()
+            metrics[0] += cls_eval(cls_preds, cls_labels)
+            metrics[1] += cls_labels.numel()
+            metrics[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks),
+            metrics[3] += bbox_labels.numel()
             print('loss: {}'.format(l.mean()))
             print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
             print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
-        # cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
+        cls_err, bbox_mae = 1 - metrics[0] / metrics[1], metrics[2] / metrics[3]
+        print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
+        print(f'{len(train_dataset) / timer.stop():.1f} examples/sec on {str(device)}')
 
     print('---')
     threshold = 0.15

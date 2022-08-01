@@ -4,6 +4,7 @@ import torch
 from torch import nn
 
 from utils.bounding_boxes import create_anchor_boxes
+from utils.funcs import debug
 
 
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:
@@ -105,7 +106,7 @@ def get_blk(i) -> nn.Module:
 
 
 def blk_forward(
-        x: torch.Tensor, block: nn.Module, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
+        x: torch.Tensor, block: nn.Sequential, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
         bbox_predictor: nn.Conv2d
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
