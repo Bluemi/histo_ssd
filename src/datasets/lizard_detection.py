@@ -1,7 +1,6 @@
 """
 Lizard Dataset described here: https://arxiv.org/pdf/2108.11195.pdf
 
-TODO: split train/eval/test
 TODO: rework transform bounding box
 """
 import random

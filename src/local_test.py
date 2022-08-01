@@ -51,13 +51,14 @@ def main():
         show_progress=True,
     )
 
-    train_dataset, eval_dataset = dataset.split(0.5)
+    # train_dataset, eval_dataset = dataset.split(0.5)
+    train_dataset = dataset
 
     print(f'len train: {len(train_dataset)}')
-    print(f'len eval: {len(eval_dataset)}')
+    # print(f'len eval: {len(eval_dataset)}')
 
-    train_data_loader = DataLoader(train_dataset, batch_size=8)
-    eval_data_loader = DataLoader(eval_dataset, batch_size=8)
+    train_data_loader = DataLoader(train_dataset, batch_size=32)
+    eval_data_loader = DataLoader(train_dataset, batch_size=32)
 
     def calc_loss(class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
@@ -65,7 +66,7 @@ def main():
         bbox = bbox_loss(bounding_box_preds * bounding_box_masks, bounding_box_labels * bounding_box_masks).mean(dim=1)
         return cls + bbox
 
-    num_epochs = 5
+    num_epochs = 30
 
     net = net.to(device)
     for epoch in range(num_epochs):
@@ -92,18 +93,21 @@ def main():
         # cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
 
     print('---')
+    threshold = 0.15
 
     for batch in eval_data_loader:
         net.eval()
         for img, boxes in zip(batch['image'], batch['boxes']):
-            boxes = boxes[:1]
+            boxes = boxes[:, 1:]
             pred_img = img.unsqueeze(0)
             output = predict(pred_img, net)
             draw_img = img.permute(1, 2, 0)
             draw_img_orig = draw_img.clone()
             draw_boxes(draw_img_orig, boxes)
             show_image(draw_img_orig)
-            draw_boxes(draw_img, output[:, 2:])
+            for row in output:
+                if row[1] > threshold:
+                    draw_boxes(draw_img, row[None, 2:])
             show_image(draw_img)
 
     # print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
