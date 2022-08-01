@@ -2,11 +2,13 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as functional
 from determined.pytorch import DataLoader
 
 from datasets import LizardDetectionDataset
 from models import TinySSD
-from utils.bounding_boxes import multibox_target
+from utils.bounding_boxes import multibox_target, multibox_detection
+from utils.funcs import draw_boxes, show_image, debug
 
 
 def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
@@ -16,6 +18,22 @@ def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
 
 def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
     return float((torch.abs((bbox_labels - bbox_preds) * bbox_masks)).sum())
+
+
+def predict(images: torch.Tensor, net: TinySSD, device: str = 'cpu'):
+    """
+    Predict batches of images
+
+    :param images: The images to predict the net on with shape [BATCH_SIZE, HEIGHT, WIDTH, CHANNELS]
+    :param net: The network to use.
+    :param device: The device to compute on
+    :return:
+    """
+    anchors, cls_preds, bbox_preds = net(images.to(device))
+    cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
+    output = multibox_detection(cls_probs, bbox_preds, anchors)
+    idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
+    return output[0, idx]  # todo: 0 means only the first sample of the batch is used
 
 
 def main():
@@ -33,7 +51,13 @@ def main():
         show_progress=True,
     )
 
-    data_loader = DataLoader(dataset, batch_size=8)
+    train_dataset, eval_dataset = dataset.split(0.5)
+
+    print(f'len train: {len(train_dataset)}')
+    print(f'len eval: {len(eval_dataset)}')
+
+    train_data_loader = DataLoader(train_dataset, batch_size=8)
+    eval_data_loader = DataLoader(eval_dataset, batch_size=8)
 
     def calc_loss(class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
@@ -41,14 +65,15 @@ def main():
         bbox = bbox_loss(bounding_box_preds * bounding_box_masks, bounding_box_labels * bounding_box_masks).mean(dim=1)
         return cls + bbox
 
-    num_epochs = 20
+    num_epochs = 5
 
     net = net.to(device)
     for epoch in range(num_epochs):
+        print(f'--- epoch {epoch} ---')
         # Sum of training accuracy, no. of examples in sum of training accuracy,
         # Sum of absolute error, no. of examples in sum of absolute error
         net.train()
-        for batch in data_loader:
+        for batch in train_data_loader:
             features = batch['image']
             target = batch['boxes']
             optimizer.zero_grad()
@@ -65,6 +90,22 @@ def main():
             print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
             print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
         # cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
+
+    print('---')
+
+    for batch in eval_data_loader:
+        net.eval()
+        for img, boxes in zip(batch['image'], batch['boxes']):
+            boxes = boxes[:1]
+            pred_img = img.unsqueeze(0)
+            output = predict(pred_img, net)
+            draw_img = img.permute(1, 2, 0)
+            draw_img_orig = draw_img.clone()
+            draw_boxes(draw_img_orig, boxes)
+            show_image(draw_img_orig)
+            draw_boxes(draw_img, output[:, 2:])
+            show_image(draw_img)
+
     # print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
 
 

@@ -96,6 +96,7 @@ class DefaultTrial(PyTorchTrial):
             'loss': loss,
         }
 
+    """
     def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
         image = batch['image']
         boxes = batch['boxes']
@@ -108,6 +109,16 @@ class DefaultTrial(PyTorchTrial):
         return {
             'loss': loss,
         }
+    """
+
+    def evaluate_full_dataset(self, data_loader: torch.utils.data.DataLoader) -> Dict[str, Any]:
+        """
+        Calculates the mean average precision for the full evaluation dataset.
+
+        :param data_loader: The dataloader of the evaluation dataset.
+        :return: Dict containing mAP value
+        """
+        pass
 
     def build_training_data_loader(self) -> DataLoader:
         return DataLoader(

@@ -12,8 +12,6 @@ import torch
 import math
 from typing import List, Union, Tuple
 
-from utils.funcs import debug
-
 
 def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
     """
@@ -282,7 +280,7 @@ def multibox_detection(
 
     Returns a tensor of shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 6).
     The 6 comes from (predicted class label, confidence, top, left, bottom, right) where "predicted class label" is -1
-    for background.
+    for background. Bounding boxes without detection have -1 label class.
 
     :param cls_probs: The predicted class probabilities with shape (BATCH_SIZE, NUM_CLASSES, NUM_ANCHOR_BOXES)
     :param offset_preds: The predicted offsets with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
