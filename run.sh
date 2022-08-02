@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Das Banana-Dataset und Lizard Dataset haben unterschiedliche Formate. Testen!"
+
 case "$1" in
 	t)
 		PYTHONPATH=./src python3 ./tests/test_gpu.py
