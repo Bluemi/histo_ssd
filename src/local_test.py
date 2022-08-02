@@ -5,11 +5,17 @@ import torch
 import torch.nn.functional as functional
 from d2l.torch import d2l
 from determined.pytorch import DataLoader
+from tqdm import tqdm
 
 from datasets import LizardDetectionDataset
+from datasets.banana_dataset import load_data_bananas
 from models import TinySSD
 from utils.bounding_boxes import multibox_target, multibox_detection
 from utils.funcs import draw_boxes, show_image, debug
+
+
+DATASET = 'banana'
+# DATASET = 'lizard'
 
 
 def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
@@ -39,27 +45,36 @@ def predict(images: torch.Tensor, net: TinySSD, device: str = 'cpu'):
 
 def main():
     device = 'cpu'
-    net = TinySSD(num_classes=6)
+
+    image_size = 256
+    if DATASET == 'lizard':
+        dataset = LizardDetectionDataset.from_datadir(
+            data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
+            image_size=np.array([image_size, image_size]),
+            image_stride=np.array([image_size, image_size]),
+            use_cache=True,
+            show_progress=True,
+        )
+
+        # train_dataset, eval_dataset = dataset.split(0.5)
+        train_dataset = dataset
+
+        print(f'len train: {len(train_dataset)}')
+        # print(f'len eval: {len(eval_dataset)}')
+
+        train_data_loader = DataLoader(train_dataset, batch_size=32)
+        eval_data_loader = DataLoader(train_dataset, batch_size=32)
+        num_classes = 6
+    elif DATASET == 'banana':
+        train_data_loader, eval_data_loader = load_data_bananas(32)
+        num_classes = 1
+    else:
+        raise ValueError('Unknown dataset: {}'.format(DATASET))
+
+    net = TinySSD(num_classes=num_classes)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
     cls_loss = torch.nn.CrossEntropyLoss(reduction='none')
     bbox_loss = torch.nn.L1Loss(reduction='none')
-
-    dataset = LizardDetectionDataset.from_datadir(
-        data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
-        image_size=np.array([224, 224]),
-        image_stride=np.array([224, 224]),
-        use_cache=True,
-        show_progress=True,
-    )
-
-    # train_dataset, eval_dataset = dataset.split(0.5)
-    train_dataset = dataset
-
-    print(f'len train: {len(train_dataset)}')
-    # print(f'len eval: {len(eval_dataset)}')
-
-    train_data_loader = DataLoader(train_dataset, batch_size=32)
-    eval_data_loader = DataLoader(train_dataset, batch_size=32)
 
     def calc_loss(class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
@@ -79,10 +94,21 @@ def main():
 
         metrics = [0.0] * 4
 
-        for batch in train_data_loader:
+        # for features, target in tqdm(train_iter):
+        # debug(features.shape)
+        for batch in tqdm(train_data_loader):
             timer.start()
-            features = batch['image']
-            target = batch['boxes']
+            if DATASET == 'lizard':
+                features = batch['image']
+                target = batch['boxes']
+            elif DATASET == 'banana':
+                features, target = batch
+            else:
+                raise ValueError('Unknown dataset: {}'.format(DATASET))
+            # debug(features.shape)
+            # debug(features[0])
+            # debug(target.shape)
+            # debug(target[0])
             optimizer.zero_grad()
             x, y = features.to(device), target.to(device)
             # Generate multiscale anchor boxes and predict their classes and offsets
@@ -95,21 +121,30 @@ def main():
             optimizer.step()
             metrics[0] += cls_eval(cls_preds, cls_labels)
             metrics[1] += cls_labels.numel()
-            metrics[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks),
+            metrics[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
             metrics[3] += bbox_labels.numel()
-            print('loss: {}'.format(l.mean()))
-            print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
-            print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
+            # print('loss: {}'.format(l.mean()))
+            # print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
+            # print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
         cls_err, bbox_mae = 1 - metrics[0] / metrics[1], metrics[2] / metrics[3]
         print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
-        print(f'{len(train_dataset) / timer.stop():.1f} examples/sec on {str(device)}')
+        print(f'{len(train_data_loader) / timer.stop():.1f} examples/sec on {str(device)}')
 
     print('---')
     threshold = 0.15
 
     for batch in eval_data_loader:
         net.eval()
-        for img, boxes in zip(batch['image'], batch['boxes']):
+
+        if DATASET == 'lizard':
+            features = batch['image']
+            target = batch['boxes']
+        elif DATASET == 'banana':
+            features, target = batch
+        else:
+            raise ValueError('Unknown dataset: {}'.format(DATASET))
+
+        for img, boxes in zip(features, target):
             boxes = boxes[:, 1:]
             pred_img = img.unsqueeze(0)
             output = predict(pred_img, net)

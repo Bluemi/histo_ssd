@@ -16,6 +16,9 @@ case "$1" in
 	b)
 		PYTHONPATH=./src ipython ./tests/test_banana.py
 		;;
+	d|data)
+		PYTHONPATH=./src python3 ./tests/test_datasets.py
+		;;
 	*)
 		PYTHONPATH=./src python3 ./tests/test_function.py
 		;;
