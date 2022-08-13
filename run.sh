@@ -10,8 +10,11 @@ case "$1" in
 	l|local)
 		PYTHONPATH=./src python3 ./src/local_test.py
 		;;
-	r|cluster)
-		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create ./configs/test_tiny.yaml ./src
+	c|cluster)
+		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create --follow-first-trial ./configs/test_tiny.yaml ./src
+		;;
+	d|det)
+		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling "$@"
 		;;
 	b)
 		PYTHONPATH=./src ipython ./tests/test_banana.py

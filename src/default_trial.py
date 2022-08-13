@@ -2,13 +2,17 @@ from typing import Tuple, Dict, Any
 
 import numpy as np
 import torch
-from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
+from torch.nn import functional
+from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
+from determined.tensorboard.metric_writers.pytorch import TorchWriter
 
 from datasets import LizardDetectionDataset
+from datasets.banana_dataset import BananasDataset
 from models import TinySSD
-from utils.bounding_boxes import multibox_target
+from utils.bounding_boxes import multibox_target, multibox_detection
+from utils.funcs import draw_boxes
 
 
 class DefaultTrial(PyTorchTrial):
@@ -50,24 +54,34 @@ class DefaultTrial(PyTorchTrial):
         self.cls_loss = torch.nn.CrossEntropyLoss(reduction='none')
         self.bbox_loss = torch.nn.L1Loss(reduction='none')
 
+        self.tblogger = TorchWriter()  # Tensorboard log
+
     def _load_dataset(self) -> Tuple[Dataset, Dataset]:
         """
         Loads the dataset and splits it into train and validation.
 
         :return: Tuple with (train_dataset, validation_dataset)
         """
-        dataset = self.context.get_hparam('dataset')
+        dataset_name = self.context.get_hparam('dataset')
         split_size = self.context.get_hparam('dataset_split_size')
-        if dataset == 'lizard':
-            print('loading {}: '.format(dataset), end='', flush=True)
+        print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
+        if dataset_name == 'lizard':
             dataset = LizardDetectionDataset.from_avocado(
                 image_size=np.array([224, 224]),
                 image_stride=np.array([224, 224]),
                 use_cache=True,
                 show_progress=False,
             )
-            print('Done', flush=True)
-            return dataset.split(split_size)
+            datasets = dataset.split(split_size)
+        elif dataset_name == 'banana':
+            dataset_train = BananasDataset(is_train=True, verbose=False)
+            dataset_val = BananasDataset(is_train=False, verbose=False)
+            datasets = (dataset_train, dataset_val)
+        else:
+            raise ValueError('Unknown dataset: {}'.format(dataset_name))
+
+        print('Done', flush=True)
+        return datasets
 
     def _calc_loss(self, class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
@@ -111,14 +125,59 @@ class DefaultTrial(PyTorchTrial):
         }
     """
 
+    def predict(self, x):
+        anchors, cls_preds, bbox_preds = self.network(x)
+        cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
+        output = multibox_detection(cls_probs, bbox_preds, anchors)
+        idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
+        return output[0, idx]
+
     def evaluate_full_dataset(self, data_loader: torch.utils.data.DataLoader) -> Dict[str, Any]:
         """
-        Calculates the mean average precision for the full evaluation dataset.
+        Calculates the mean average precision for the full evaluation dataset. TODO
+        Also shows some images of predictions of the model
 
         :param data_loader: The dataloader of the evaluation dataset.
         :return: Dict containing mAP value
         """
-        pass
+        # noinspection PyProtectedMember
+        batch_idx = self.context._current_batch_idx + 1
+        image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
+
+        image_counter = 0
+        for batch in data_loader:
+            for image, boxes in zip(batch['image'], batch['boxes']):
+                draw_image = image.squeeze(0).permute(1, 2, 0).long()
+                output = self.predict(image.unsqueeze(0).float())
+
+                # draw predictions
+                for row in output:
+                    score = float(row[1])
+                    if score < self.context.get_hparam('image_prediction_score_threshold'):
+                        continue
+                    bbox = row[2:6].unsqueeze(0)
+                    draw_boxes(draw_image, bbox, color=(255, 0, 0), box_format='ltrb')
+                # draw ground truth
+                for box in boxes:
+                    if box[0] < 0:
+                        continue
+                    bbox = box[1:5].unsqueeze(0)
+                    draw_boxes(draw_image, bbox, color=(0, 255, 0), box_format='ltrb')
+
+                self.tblogger.writer.add_figure(
+                    f'Prediction_batch_{batch_idx}',
+                    draw_image,
+                    global_step=batch_idx
+                )
+                image_counter += 1
+                if image_counter >= image_prediction_max_images:
+                    break
+            if image_counter >= image_prediction_max_images:
+                break
+
+        return {
+            'mAP': 0.0  # TODO
+        }
 
     def build_training_data_loader(self) -> DataLoader:
         return DataLoader(
@@ -137,4 +196,3 @@ class DefaultTrial(PyTorchTrial):
             num_workers=self.context.get_hparam('num_workers'),
             pin_memory=True
         )
-

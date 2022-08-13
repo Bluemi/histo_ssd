@@ -38,7 +38,10 @@ class BananasDataset(torch.utils.data.Dataset):
             print('read ' + str(len(self.features)) + (f' training examples' if is_train else f' validation examples'))
 
     def __getitem__(self, idx):
-        return self.features[idx].float(), self.labels[idx]
+        return {
+            'image': self.features[idx].float(),
+            'boxes': self.labels[idx],
+        }
 
     def __len__(self):
         return len(self.features)
