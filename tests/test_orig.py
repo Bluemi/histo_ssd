@@ -9,9 +9,10 @@ from torch.nn import functional as F
 from d2l import torch as d2l
 from tqdm import tqdm
 
+from utils.funcs import draw_boxes
 
-# MODEL_LOAD_PATH = '../models/banana_model1.pth'
-MODEL_LOAD_PATH = '../models/lizard_model1.pth'
+MODEL_LOAD_PATH = '../models/banana_model1.pth'
+# MODEL_LOAD_PATH = '../models/lizard_model1.pth'
 
 NUM_CLASSES = 1
 
@@ -208,15 +209,13 @@ for img_path in glob('img/*.png'):
     output = predict(X)
 
     def display(img, output, threshold):
-        d2l.set_figsize((5, 5))
-        fig = d2l.plt.imshow(img)
         for row in output:
             score = float(row[1])
             if score < threshold:
                 continue
-            h, w = img.shape[:2]
-            bbox = [row[2:6] * torch.tensor((w, h, w, h), device=row.device)]
-            d2l.show_bboxes(fig.axes, bbox, '%.2f' % score, 'w')
+            bbox = row[2:6].unsqueeze(0)
+            draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
+        plt.imshow(img)
         plt.show()
 
-    display(img, output.cpu(), threshold=0.2)
+    display(img, output.cpu(), threshold=0.4)
