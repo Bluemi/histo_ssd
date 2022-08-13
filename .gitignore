@@ -131,3 +131,6 @@ dmypy.json
 ### CUSTOM
 /.idea
 /res
+/data
+/img
+/tests/test_orig.ipynb

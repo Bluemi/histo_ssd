@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -15,7 +17,23 @@ from utils.funcs import draw_boxes, show_image, debug
 
 
 DATASET = 'banana'
-# DATASET = 'lizard'
+DATASET = 'lizard'
+
+MODEL_LOAD_PATH = '../models/model{}.pth'.format(1)
+# MODEL_LOAD_PATH = None
+
+
+def define_model_save_path():
+    i = 0
+    while True:
+        model_save_path = '../models/model{}.pth'.format(i)
+        if not os.path.isfile(model_save_path):
+            return model_save_path
+        i += 1
+
+
+MODEL_SAVE_PATH = define_model_save_path()
+# MODEL_SAVE_PATH = None
 
 
 def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
@@ -82,53 +100,59 @@ def main():
         bbox = bbox_loss(bounding_box_preds * bounding_box_masks, bounding_box_labels * bounding_box_masks).mean(dim=1)
         return cls + bbox
 
-    num_epochs = 30
+    num_epochs = 20
     timer = d2l.Timer()
 
     net = net.to(device)
-    for epoch in range(num_epochs):
-        print(f'--- epoch {epoch} ---')
-        # Sum of training accuracy, no. of examples in sum of training accuracy,
-        # Sum of absolute error, no. of examples in sum of absolute error
-        net.train()
 
-        metrics = [0.0] * 4
+    if MODEL_LOAD_PATH and os.path.isfile(MODEL_LOAD_PATH):
+        net.load_state_dict(torch.load(MODEL_LOAD_PATH))
+    else:
+        for epoch in range(num_epochs):
+            print(f'--- epoch {epoch} ---')
+            # Sum of training accuracy, no. of examples in sum of training accuracy,
+            # Sum of absolute error, no. of examples in sum of absolute error
+            net.train()
 
-        # for features, target in tqdm(train_iter):
-        # debug(features.shape)
-        for batch in tqdm(train_data_loader):
-            timer.start()
-            if DATASET == 'lizard':
-                features = batch['image']
-                target = batch['boxes']
-            elif DATASET == 'banana':
-                features, target = batch
-            else:
-                raise ValueError('Unknown dataset: {}'.format(DATASET))
+            metrics = [0.0] * 4
+
+            # for features, target in tqdm(train_iter):
             # debug(features.shape)
-            # debug(features[0])
-            # debug(target.shape)
-            # debug(target[0])
-            optimizer.zero_grad()
-            x, y = features.to(device), target.to(device)
-            # Generate multiscale anchor boxes and predict their classes and offsets
-            anchors, cls_preds, bbox_preds = net(x)
-            # Label the classes and offsets of these anchor boxes
-            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, y)
-            # Calculate the loss function using the predicted and labeled values of the classes and offsets
-            l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
-            l.mean().backward()
-            optimizer.step()
-            metrics[0] += cls_eval(cls_preds, cls_labels)
-            metrics[1] += cls_labels.numel()
-            metrics[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
-            metrics[3] += bbox_labels.numel()
-            # print('loss: {}'.format(l.mean()))
-            # print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
-            # print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
-        cls_err, bbox_mae = 1 - metrics[0] / metrics[1], metrics[2] / metrics[3]
-        print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
-        print(f'{len(train_data_loader) / timer.stop():.1f} examples/sec on {str(device)}')
+            for batch in tqdm(train_data_loader):
+                timer.start()
+                if DATASET == 'lizard':
+                    features = batch['image']
+                    target = batch['boxes']
+                elif DATASET == 'banana':
+                    features, target = batch
+                else:
+                    raise ValueError('Unknown dataset: {}'.format(DATASET))
+                # debug(features.shape)
+                # debug(features[0])
+                # debug(target.shape)
+                # debug(target[0])
+                optimizer.zero_grad()
+                x, y = features.to(device), target.to(device)
+                # Generate multiscale anchor boxes and predict their classes and offsets
+                anchors, cls_preds, bbox_preds = net(x)
+                # Label the classes and offsets of these anchor boxes
+                bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, y)
+                # Calculate the loss function using the predicted and labeled values of the classes and offsets
+                l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
+                l.mean().backward()
+                optimizer.step()
+                metrics[0] += cls_eval(cls_preds, cls_labels)
+                metrics[1] += cls_labels.numel()
+                metrics[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
+                metrics[3] += bbox_labels.numel()
+                # print('loss: {}'.format(l.mean()))
+                # print('class eval: {}'.format(cls_eval(cls_preds, cls_labels)))
+                # print('bbox eval: {}'.format(bbox_eval(bbox_preds, bbox_labels, bbox_masks)))
+            cls_err, bbox_mae = 1 - metrics[0] / metrics[1], metrics[2] / metrics[3]
+            print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
+            print(f'{len(train_data_loader) / timer.stop():.1f} examples/sec on {str(device)}')
+
+        torch.save(net.state_dict(), MODEL_SAVE_PATH)
 
     print('---')
     threshold = 0.15
@@ -148,14 +172,16 @@ def main():
             boxes = boxes[:, 1:]
             pred_img = img.unsqueeze(0)
             output = predict(pred_img, net)
+
             draw_img = img.permute(1, 2, 0)
             draw_img_orig = draw_img.clone()
             draw_boxes(draw_img_orig, boxes)
+            print(boxes)
             show_image(draw_img_orig)
-            for row in output:
-                if row[1] > threshold:
-                    draw_boxes(draw_img, row[None, 2:])
-            show_image(draw_img)
+            # for row in output:
+            #     if row[1] > threshold:
+            #         draw_boxes(draw_img, row[None, 2:])
+            # show_image(draw_img)
 
     # print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
 
