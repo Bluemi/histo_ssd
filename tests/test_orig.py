@@ -7,7 +7,6 @@ import torchvision
 from torch import nn
 from torch.nn import functional as F
 from tqdm import tqdm
-from d2l import torch as d2l
 
 from datasets.banana_dataset import load_data_bananas
 from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
@@ -127,7 +126,7 @@ class TinySSD(nn.Module):
 
 
 batch_size = 32
-train_iter, _ = load_data_bananas(batch_size)
+train_iter, val_iter = load_data_bananas(batch_size)
 
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)
@@ -167,11 +166,13 @@ else:
         # in sum of absolute error
         metric = [0.0] * 4
         net.train()
-        for features, target in tqdm(train_iter, desc=f'epoch {epoch + 1}'):
+        for batch in tqdm(train_iter, desc=f'epoch {epoch + 1}'):
+            features = batch['image']
+            target = batch['boxes']
             trainer.zero_grad()
-            X, Y = features.to(device), target.to(device)
+            x, Y = features.to(device), target.to(device)
             # Generate multiscale anchor boxes and predict their classes and offsets
-            anchors, cls_preds, bbox_preds = net(X)
+            anchors, cls_preds, bbox_preds = net(x)
             # Label the classes and offsets of these anchor boxes
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y)
             # bbox_labels, bbox_masks, cls_labels = d2l.multibox_target(anchors, Y)
@@ -205,20 +206,26 @@ def predict(x):
     return output[0, idx]
 
 
-for img_path in glob('img/*.png'):
-    X = torchvision.io.read_image(img_path).unsqueeze(0).float()
-    img = X.squeeze(0).permute(1, 2, 0).long()
+for batch in val_iter:
+    images = batch['image']
+    boxes = batch['boxes']
+    for image, box in zip(images, boxes):
+        draw_image = image.squeeze(0).permute(1, 2, 0).long()
+        output = predict(image.unsqueeze(0).float())
 
-    output = predict(X)
+        def display(img, output, boxes, threshold):
+            for row in output:
+                score = float(row[1])
+                if score < threshold:
+                    continue
+                bbox = row[2:6].unsqueeze(0)
+                draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
+            for box in boxes:
+                if box[0] < 0:
+                    continue
+                bbox = box[1:5].unsqueeze(0)
+                draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
+            plt.imshow(img)
+            plt.show()
 
-    def display(img, output, threshold):
-        for row in output:
-            score = float(row[1])
-            if score < threshold:
-                continue
-            bbox = row[2:6].unsqueeze(0)
-            draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
-        plt.imshow(img)
-        plt.show()
-
-    display(img, output.cpu(), threshold=0.9)
+        display(draw_image, output.cpu(), box, threshold=0.9)
