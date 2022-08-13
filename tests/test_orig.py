@@ -82,12 +82,12 @@ def get_blk(i):
     return blk
 
 
-def blk_forward(X, blk, size, ratio, cls_predictor, bbox_predictor):
-    Y = blk(X)
-    anchors = d2l.multibox_prior(Y, sizes=size, ratios=ratio)
-    cls_preds = cls_predictor(Y)
-    bbox_preds = bbox_predictor(Y)
-    return (Y, anchors, cls_preds, bbox_preds)
+def blk_forward(x, blk, size, ratio, cls_predictor, bbox_predictor):
+    y = blk(x)
+    anchors = d2l.multibox_prior(y, sizes=size, ratios=ratio)
+    cls_preds = cls_predictor(y)
+    bbox_preds = bbox_predictor(y)
+    return y, anchors, cls_preds, bbox_preds
 
 
 sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
