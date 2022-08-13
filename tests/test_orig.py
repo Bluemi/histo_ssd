@@ -6,12 +6,14 @@ import torch
 import torchvision
 from torch import nn
 from torch.nn import functional as F
-from d2l import torch as d2l
 from tqdm import tqdm
+from d2l import torch as d2l
 
-from utils.funcs import draw_boxes
+from datasets.banana_dataset import load_data_bananas
+from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
+from utils.funcs import draw_boxes, debug
 
-MODEL_LOAD_PATH = '../models/banana_model1.pth'
+MODEL_LOAD_PATH = '../models/banana_model2.pth'
 # MODEL_LOAD_PATH = '../models/lizard_model1.pth'
 
 NUM_CLASSES = 1
@@ -85,7 +87,7 @@ def get_blk(i):
 
 def blk_forward(x, blk, size, ratio, cls_predictor, bbox_predictor):
     y = blk(x)
-    anchors = d2l.multibox_prior(y, sizes=size, ratios=ratio)
+    anchors = create_anchor_boxes(y.shape[-2:], scales=size, ratios=ratio, device=y.device)
     cls_preds = cls_predictor(y)
     bbox_preds = bbox_predictor(y)
     return y, anchors, cls_preds, bbox_preds
@@ -125,7 +127,7 @@ class TinySSD(nn.Module):
 
 
 batch_size = 32
-train_iter, _ = d2l.load_data_bananas(batch_size)
+train_iter, _ = load_data_bananas(batch_size)
 
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)
@@ -151,8 +153,8 @@ def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
     return float((torch.abs((bbox_labels - bbox_preds) * bbox_masks)).sum())
 
 
-num_epochs, timer = 20, d2l.Timer()
-animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], legend=['class error', 'bbox mae'])
+num_epochs = 20
+# animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], legend=['class error', 'bbox mae'])
 net = net.to(device)
 
 if MODEL_LOAD_PATH and os.path.isfile(MODEL_LOAD_PATH):
@@ -163,31 +165,32 @@ else:
     for epoch in range(num_epochs):
         # Sum of training accuracy, no. of examples in sum of training accuracy, Sum of absolute error, no. of examples
         # in sum of absolute error
-        metric = d2l.Accumulator(4)
+        metric = [0.0] * 4
         net.train()
         for features, target in tqdm(train_iter, desc=f'epoch {epoch + 1}'):
-            timer.start()
             trainer.zero_grad()
             X, Y = features.to(device), target.to(device)
             # Generate multiscale anchor boxes and predict their classes and offsets
             anchors, cls_preds, bbox_preds = net(X)
             # Label the classes and offsets of these anchor boxes
-            bbox_labels, bbox_masks, cls_labels = d2l.multibox_target(anchors, Y)
+            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y)
+            # bbox_labels, bbox_masks, cls_labels = d2l.multibox_target(anchors, Y)
+            # debug((bbox_labels == bbox_labels_own).all())
+            # debug((bbox_masks == bbox_masks_own).all())
+            # debug((cls_labels == cls_labels_own).all())
             # Calculate the loss function using the predicted and labeled values of the classes and offsets
             l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
             l.mean().backward()
             trainer.step()
-            metric.add(
-                cls_eval(cls_preds, cls_labels),
-                cls_labels.numel(),
-                bbox_eval(bbox_preds, bbox_labels, bbox_masks),
-                bbox_labels.numel()
-            )
+            metric[0] += cls_eval(cls_preds, cls_labels)
+            metric[1] += cls_labels.numel()
+            metric[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
+            metric[3] += bbox_labels.numel()
         cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
-        animator.add(epoch + 1, (cls_err, bbox_mae))
+        # animator.add(epoch + 1, (cls_err, bbox_mae))
         plt.show()
     print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
-    print(f'{len(train_iter.dataset) / timer.stop():.1f} examples/sec on {str(device)}')
+    print(f'{len(train_iter.dataset)} examples on {str(device)}')
     torch.save(net.state_dict(), MODEL_LOAD_PATH)
 
 
@@ -197,7 +200,7 @@ def predict(x):
     net.eval()
     anchors, cls_preds, bbox_preds = net(x.to(device))
     cls_probs = F.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = d2l.multibox_detection(cls_probs, bbox_preds, anchors)
+    output = multibox_detection(cls_probs, bbox_preds, anchors)
     idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
     return output[0, idx]
 
@@ -218,4 +221,4 @@ for img_path in glob('img/*.png'):
         plt.imshow(img)
         plt.show()
 
-    display(img, output.cpu(), threshold=0.4)
+    display(img, output.cpu(), threshold=0.9)
