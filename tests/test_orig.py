@@ -126,7 +126,7 @@ class TinySSD(nn.Module):
 
 
 batch_size = 32
-train_iter, val_iter = load_data_bananas(batch_size)
+train_iter, val_iter = load_data_bananas(batch_size)  # TODO fix
 
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)

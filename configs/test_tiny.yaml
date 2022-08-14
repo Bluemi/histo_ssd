@@ -7,9 +7,9 @@ hyperparameters:
   num_workers: 8
   model: "tiny_ssd"
   optimizer: "sgd"
-  learning_rate: 0.006
+  learning_rate: 0.2
   l2_regularization: 1e-5
-  image_prediction_score_threshold: 0.9
+  image_prediction_score_threshold: 0.7
   image_prediction_max_images: 5
 min_validation_period:
   batches: 200
