@@ -11,7 +11,7 @@ case "$1" in
 		PYTHONPATH=./src python3 ./src/local_test.py
 		;;
 	c|cluster)
-		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create --follow-first-trial ./configs/test_tiny.yaml ./src
+		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create ./configs/test_tiny.yaml ./src
 		;;
 	lc|localcluster)
 		det -m "http://localhost:8080" -u admin experiment create ./configs/test_tiny.yaml ./src

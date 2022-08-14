@@ -1,5 +1,8 @@
-from typing import Tuple, Dict, Any
+import auto_log
 
+auto_log.init_auto_log('bruno')
+
+from typing import Tuple, Dict, Any
 import matplotlib
 import numpy as np
 import torch
