@@ -1,9 +1,7 @@
 import os
-from glob import glob
 
 import matplotlib.pyplot as plt
 import torch
-import torchvision
 from torch import nn
 from torch.nn import functional as F
 from tqdm import tqdm
@@ -126,7 +124,7 @@ class TinySSD(nn.Module):
 
 
 batch_size = 32
-train_iter, val_iter = load_data_bananas(batch_size)  # TODO fix
+train_iter, val_iter = load_data_bananas('../data/banana-detection', batch_size)
 
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)
