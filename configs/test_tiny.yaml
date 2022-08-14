@@ -2,7 +2,7 @@ name: SSD::Standard-Test::TinySSD
 description: "Test trial for the tiny model of the single shot multibox detector"
 hyperparameters:
   global_batch_size: 64
-  dataset: "banana"
+  dataset: "lizard"
   dataset_split_size: 0.8
   num_workers: 8
   model: "tiny_ssd"
@@ -17,7 +17,7 @@ searcher:
   name: grid
   metric: loss
   max_length:
-    batches: 400
+    batches: 3000
   smaller_is_better: true
 entrypoint: default_trial:DefaultTrial
 environment:
