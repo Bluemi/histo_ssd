@@ -101,7 +101,10 @@ class DefaultTrial(PyTorchTrial):
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
-    def _calc_loss(self, class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
+    def _calc_loss(
+            self, class_preds: torch.Tensor, class_labels: torch.Tensor, bounding_box_preds: torch.Tensor,
+            bounding_box_labels: torch.Tensor, bounding_box_masks: torch.Tensor
+    ) -> torch.Tensor:
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
         cls = self.cls_loss(
             class_preds.reshape(-1, num_classes), class_labels.reshape(-1)
