@@ -1,19 +1,32 @@
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
 from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
 from utils.funcs import draw_boxes, debug
 
-MODEL_LOAD_PATH = '../models/banana_model2.pth'
-# MODEL_LOAD_PATH = '../models/lizard_model1.pth'
 
-NUM_CLASSES = 1
+DISPLAY_GROUND_TRUTH = True
+DATASET = 'banana'
+DATASET = 'lizard'
+
+MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
+
+if DATASET == 'banana':
+    NUM_CLASSES = 1
+elif DATASET == 'lizard':
+    NUM_CLASSES = 6
+else:
+    raise ValueError('Unknown dataset: {}'.format(DATASET))
 
 
 def cls_predictor(num_inputs, num_anchors, num_classes):
@@ -28,20 +41,12 @@ def forward(x, block):
     return block(x)
 
 
-Y1 = forward(torch.zeros((2, 8, 20, 20)), cls_predictor(8, 5, 10))
-Y2 = forward(torch.zeros((2, 16, 10, 10)), cls_predictor(16, 3, 10))
-# print(Y1.shape, Y2.shape)
-
-
 def flatten_pred(pred):
     return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
 
 
 def concat_preds(preds):
     return torch.cat([flatten_pred(p) for p in preds], dim=1)
-
-
-# print(concat_preds([Y1, Y2]).shape)
 
 
 def down_sample_blk(in_channels, out_channels):
@@ -56,18 +61,12 @@ def down_sample_blk(in_channels, out_channels):
     return nn.Sequential(*blk)
 
 
-# print(forward(torch.zeros((2, 3, 20, 20)), down_sample_blk(3, 10)).shape)
-
-
 def base_net():
     blk = []
     num_filters = [3, 16, 32, 64]
     for i in range(len(num_filters) - 1):
         blk.append(down_sample_blk(num_filters[i], num_filters[i+1]))
     return nn.Sequential(*blk)
-
-
-# print(forward(torch.zeros((2, 3, 256, 256)), base_net()).shape)
 
 
 def get_blk(i):
@@ -124,7 +123,34 @@ class TinySSD(nn.Module):
 
 
 batch_size = 32
-train_iter, val_iter = load_data_bananas('../data/banana-detection', batch_size)
+if DATASET == 'banana':
+    train_iter, val_iter = load_data_bananas('../data/banana-detection', batch_size)
+elif DATASET == 'lizard':
+    dataset = LizardDetectionDataset.from_datadir(
+        data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
+        image_size=np.array([224, 224]),
+        image_stride=np.array([224, 224]),
+        use_cache=True,
+        show_progress=False,
+    )
+    train_dataset, val_dataset = dataset.split(0.8)
+    train_iter = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True
+    )
+    val_iter = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=8,
+        pin_memory=True
+    )
+else:
+    raise ValueError('Unknown dataset: {}'.format(DATASET))
+
 
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)
@@ -151,7 +177,6 @@ def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
 
 
 num_epochs = 20
-# animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], legend=['class error', 'bbox mae'])
 net = net.to(device)
 
 if MODEL_LOAD_PATH and os.path.isfile(MODEL_LOAD_PATH):
@@ -173,10 +198,6 @@ else:
             anchors, cls_preds, bbox_preds = net(x)
             # Label the classes and offsets of these anchor boxes
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y)
-            # bbox_labels, bbox_masks, cls_labels = d2l.multibox_target(anchors, Y)
-            # debug((bbox_labels == bbox_labels_own).all())
-            # debug((bbox_masks == bbox_masks_own).all())
-            # debug((cls_labels == cls_labels_own).all())
             # Calculate the loss function using the predicted and labeled values of the classes and offsets
             l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
             l.mean().backward()
@@ -186,8 +207,6 @@ else:
             metric[2] += bbox_eval(bbox_preds, bbox_labels, bbox_masks)
             metric[3] += bbox_labels.numel()
         cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
-        # animator.add(epoch + 1, (cls_err, bbox_mae))
-        plt.show()
     print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
     print(f'{len(train_iter.dataset)} examples on {str(device)}')
     torch.save(net.state_dict(), MODEL_LOAD_PATH)
@@ -208,7 +227,11 @@ for batch in val_iter:
     images = batch['image']
     boxes = batch['boxes']
     for image, box in zip(images, boxes):
-        draw_image = image.squeeze(0).permute(1, 2, 0).long()
+        if DATASET == 'lizard':
+            draw_image = image * 255
+        else:
+            draw_image = image
+        draw_image = draw_image.squeeze(0).permute(1, 2, 0).long()
         output = predict(image.unsqueeze(0).float())
 
         def display(img, output, boxes, threshold):
@@ -218,11 +241,12 @@ for batch in val_iter:
                     continue
                 bbox = row[2:6].unsqueeze(0)
                 draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
-            for box in boxes:
-                if box[0] < 0:
-                    continue
-                bbox = box[1:5].unsqueeze(0)
-                draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
+            if DISPLAY_GROUND_TRUTH:
+                for box in boxes:
+                    if box[0] < 0:
+                        continue
+                    bbox = box[1:5].unsqueeze(0)
+                    draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
             plt.imshow(img)
             plt.show()
 

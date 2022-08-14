@@ -31,6 +31,7 @@ class BananasDataset(torch.utils.data.Dataset):
         self.features, self.labels = read_data_bananas(data_dir, is_train, verbose=verbose)
         if verbose:
             print('read ' + str(len(self.features)) + (f' training examples' if is_train else f' validation examples'))
+        self.features /= 255.0  # normalize images to be between 0 and 1
 
     def __getitem__(self, idx):
         return {
