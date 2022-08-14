@@ -3,15 +3,10 @@ import pandas as pd
 import torch
 import torch.utils.data
 import torchvision
-from d2l.torch import d2l
 
 
-d2l.DATA_HUB['banana-detection'] = (d2l.DATA_URL + 'banana-detection.zip', '5de26c8fce5ccdea9f91267273464dc968d20d72')
-
-
-def read_data_bananas(is_train=True, verbose=True):
+def read_data_bananas(data_dir: str, is_train=True, verbose=True):
     """Read the banana detection dataset images and labels."""
-    data_dir = d2l.download_extract('banana-detection')
     if verbose:
         print(data_dir)
     csv_fname = os.path.join(data_dir, 'bananas_train' if is_train else 'bananas_val', 'label.csv')
@@ -32,8 +27,8 @@ def read_data_bananas(is_train=True, verbose=True):
 
 class BananasDataset(torch.utils.data.Dataset):
     """A customized dataset to load the banana detection dataset."""
-    def __init__(self, is_train, verbose=True):
-        self.features, self.labels = read_data_bananas(is_train, verbose=verbose)
+    def __init__(self, data_dir: str, is_train, verbose=True):
+        self.features, self.labels = read_data_bananas(data_dir, is_train, verbose=verbose)
         if verbose:
             print('read ' + str(len(self.features)) + (f' training examples' if is_train else f' validation examples'))
 
@@ -47,8 +42,15 @@ class BananasDataset(torch.utils.data.Dataset):
         return len(self.features)
 
 
-def load_data_bananas(batch_size, verbose=True):
+def load_data_bananas(data_dir: str, batch_size, verbose=True):
     """Load the banana detection dataset."""
-    train_iter = torch.utils.data.DataLoader(BananasDataset(is_train=True, verbose=verbose), batch_size, shuffle=True)
-    val_iter = torch.utils.data.DataLoader(BananasDataset(is_train=False, verbose=verbose), batch_size)
+    train_iter = torch.utils.data.DataLoader(
+        BananasDataset(data_dir, is_train=True, verbose=verbose),
+        batch_size,
+        shuffle=True
+    )
+    val_iter = torch.utils.data.DataLoader(
+        BananasDataset(data_dir, is_train=False, verbose=verbose),
+        batch_size
+    )
     return train_iter, val_iter

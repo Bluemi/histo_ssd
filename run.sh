@@ -13,6 +13,9 @@ case "$1" in
 	c|cluster)
 		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling experiment create --follow-first-trial ./configs/test_tiny.yaml ./src
 		;;
+	lc|localcluster)
+		det -m "http://localhost:8080" -u admin experiment create --follow-first-trial ./configs/test_tiny.yaml ./src
+		;;
 	d|det)
 		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling "$@"
 		;;

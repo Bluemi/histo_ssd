@@ -1,5 +1,6 @@
 from typing import Tuple, Dict, Any
 
+import matplotlib
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
@@ -7,6 +8,7 @@ from torch.utils.data import Dataset
 from torch.nn import functional
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
+import matplotlib.pyplot as plt
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import BananasDataset
@@ -74,8 +76,9 @@ class DefaultTrial(PyTorchTrial):
             )
             datasets = dataset.split(split_size)
         elif dataset_name == 'banana':
-            dataset_train = BananasDataset(is_train=True, verbose=False)
-            dataset_val = BananasDataset(is_train=False, verbose=False)
+            dataset_location = '/data/local/banana-detection'
+            dataset_train = BananasDataset(data_dir=dataset_location, is_train=True, verbose=False)
+            dataset_val = BananasDataset(data_dir=dataset_location, is_train=False, verbose=False)
             datasets = (dataset_train, dataset_val)
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
@@ -147,6 +150,7 @@ class DefaultTrial(PyTorchTrial):
         image_counter = 0
         for batch in data_loader:
             for image, boxes in zip(batch['image'], batch['boxes']):
+                image = image.to(self.context.device)
                 draw_image = image.squeeze(0).permute(1, 2, 0).long()
                 output = self.predict(image.unsqueeze(0).float())
 
@@ -164,9 +168,11 @@ class DefaultTrial(PyTorchTrial):
                     bbox = box[1:5].unsqueeze(0)
                     draw_boxes(draw_image, bbox, color=(0, 255, 0), box_format='ltrb')
 
+                fig: matplotlib.figure.Figure = plt.figure(figsize=(10, 10))
+                plt.imshow(draw_image.cpu())
                 self.tblogger.writer.add_figure(
-                    f'Prediction_batch_{batch_idx}',
-                    draw_image,
+                    f'Prediction_batch_{batch_idx}_{image_counter}',
+                    fig,
                     global_step=batch_idx
                 )
                 image_counter += 1
@@ -176,7 +182,8 @@ class DefaultTrial(PyTorchTrial):
                 break
 
         return {
-            'mAP': 0.0  # TODO
+            'mAP': 0.0,  # TODO
+            'loss': 0.0,  # TODO
         }
 
     def build_training_data_loader(self) -> DataLoader:

@@ -4,7 +4,7 @@ hyperparameters:
   global_batch_size: 64
   dataset: "banana"
   dataset_split_size: 0.8
-  num_workers: 16
+  num_workers: 8
   model: "tiny_ssd"
   optimizer: "sgd"
   learning_rate: 0.006
@@ -25,16 +25,20 @@ environment:
     cpu: "deepprojects/determined-pytorch-1.12-cpu:1.0.1"
     gpu: "deepprojects/determined-cuda-113-pytorch-1.12-gpu:1.0.0"
 bind_mounts:
-  - host_path: "/data/ldap/histopathologic"
-    container_path: "/data/ldap/histopathologic"
+  - host_path: "/home/alok/cbmi/data/"
+    container_path: "/data/local"
     read_only: true
+# bind_mounts:
+#   - host_path: "/data/ldap/histopathologic"
+#     container_path: "/data/ldap/histopathologic"
+#     read_only: true
 checkpoint_storage:
   save_trial_best: 0
   save_trial_latest: 0
   save_experiment_best: 0
 max_restarts: 0
 resources:
-  agent_label: pepper-cluster
+  # agent_label: pepper-cluster
   max_slots: 1
   slots_per_trial: 1
 reproducibility:
