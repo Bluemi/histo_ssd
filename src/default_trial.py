@@ -24,11 +24,12 @@ class DefaultTrial(PyTorchTrial):
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
+        self.num_classes = self._get_num_classes()
 
         # Creates a feature vector
         model = self.context.get_hparam('model')
         if model == 'tiny_ssd':
-            network = TinySSD(num_classes=6)
+            network = TinySSD(num_classes=self.num_classes)
         else:
             raise ValueError('Unknown model \"{}\"'.format(model))
 
@@ -85,6 +86,20 @@ class DefaultTrial(PyTorchTrial):
 
         print('Done', flush=True)
         return datasets
+
+    def _get_num_classes(self) -> int:
+        """
+        Defines the number of classes for the given dataset
+
+        :return: The number of classes
+        """
+        dataset_name = self.context.get_hparam('dataset')
+        if dataset_name == 'lizard':
+            return 6
+        elif dataset_name == 'banana':
+            return 1
+        else:
+            raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
     def _calc_loss(self, class_preds, class_labels, bounding_box_preds, bounding_box_labels, bounding_box_masks):
         batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
