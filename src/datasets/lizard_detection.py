@@ -313,8 +313,9 @@ class LizardDetectionDataset(Dataset):
 
     def pad_join_boxes_and_labels(self, bounding_boxes: np.ndarray, class_labels: np.ndarray) -> np.ndarray:
         """
-        Joins the given bounding_boxes with shape [N, 4] and class_labels with shape [N,] to a new tensor with shape
-        [N, 5] so each sample has elements (class_label, top, left, bottom, right).
+        Converts given bounding_boxes from tlbr to ltrb format.
+        Then joins the given bounding_boxes with shape [N, 4] and class_labels with shape [N,] to a new tensor with
+        shape [N, 5] so each sample has elements (class_label, left, top, right, bottom).
         Also pads with (-1, 0, 0, 0, 0) samples to create shape of [max_boxes_per_snapshot, 5].
 
         :param bounding_boxes: Bounding boxes of shape [N, 4]
@@ -325,6 +326,10 @@ class LizardDetectionDataset(Dataset):
         assert class_labels.shape[0] == bounding_boxes.shape[0]
         assert (class_labels >= 0).all()
         assert (class_labels < len(LABELS)).all()
+
+        # convert from tlbr to ltrb
+        indices = torch.LongTensor([1, 0, 3, 2])
+        bounding_boxes = bounding_boxes[:, indices]
 
         # join labels and boxes
         joint = np.concatenate((class_labels.reshape(-1, 1), bounding_boxes), axis=1)

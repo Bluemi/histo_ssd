@@ -12,7 +12,7 @@ from tqdm import tqdm
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
 from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
-from utils.funcs import draw_boxes, debug
+from utils.funcs import draw_boxes
 
 
 DISPLAY_GROUND_TRUTH = True
