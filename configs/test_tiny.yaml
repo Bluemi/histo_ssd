@@ -28,10 +28,9 @@ bind_mounts:
   - host_path: "/home/alok/cbmi/data/"
     container_path: "/data/local"
     read_only: true
-# bind_mounts:
-#   - host_path: "/data/ldap/histopathologic"
-#     container_path: "/data/ldap/histopathologic"
-#     read_only: true
+  - host_path: "/data/ldap/histopathologic"
+    container_path: "/data/ldap/histopathologic"
+    read_only: true
 checkpoint_storage:
   save_trial_best: 0
   save_trial_latest: 0
