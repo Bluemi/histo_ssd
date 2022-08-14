@@ -32,8 +32,8 @@ bind_mounts:
     container_path: "/data/ldap/histopathologic"
     read_only: true
   # logging
-  - host_path: "/data/ldap/logging"
-    container_path: "/logging"
+  - host_path: "/data/determined/shared_fs/logs"
+    container_path: "/logs"
     read_only: false
 checkpoint_storage:
   save_trial_best: 0
