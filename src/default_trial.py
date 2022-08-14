@@ -166,7 +166,7 @@ class DefaultTrial(PyTorchTrial):
         for batch in data_loader:
             for image, boxes in zip(batch['image'], batch['boxes']):
                 image = image.to(self.context.device)
-                draw_image = image.squeeze(0).permute(1, 2, 0).long()
+                draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
                 output = self.predict(image.unsqueeze(0).float())
 
                 # draw predictions
