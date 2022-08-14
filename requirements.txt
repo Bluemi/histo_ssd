@@ -9,3 +9,4 @@ tqdm==4.64.0
 torchvision==0.12.0+cu113
 d2l==0.17.5
 pandas==1.2.4
+matplotlib==3.5.2
