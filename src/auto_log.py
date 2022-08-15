@@ -1,7 +1,7 @@
 import os
+import sys
 import logging
 from pathlib import Path
-import sys
 
 
 def init_auto_log(name: str):
