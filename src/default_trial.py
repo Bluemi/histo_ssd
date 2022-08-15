@@ -154,7 +154,7 @@ class DefaultTrial(PyTorchTrial):
         cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
         output = multibox_detection(cls_probs, bbox_preds, anchors)
         idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
-        return output[0, idx]
+        return output[0, idx]  # TODO: replace 0 with :
 
     def evaluate_full_dataset(self, data_loader: torch.utils.data.DataLoader) -> Dict[str, Any]:
         """

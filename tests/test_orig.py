@@ -8,18 +8,21 @@ from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
+from pprint import pprint
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
+from metrics import update_mean_average_precision
 from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
 from utils.funcs import draw_boxes
 
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
-DATASET = 'lizard'
+# DATASET = 'lizard'
 
-MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
+MODEL_LOAD_PATH = '../models/{}_model1.pth'.format(DATASET)
 
 if DATASET == 'banana':
     NUM_CLASSES = 1
@@ -220,19 +223,24 @@ def predict(x):
     cls_probs = F.softmax(cls_preds, dim=2).permute(0, 2, 1)
     output = multibox_detection(cls_probs, bbox_preds, anchors)
     idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
-    return output[0, idx]
+    return output[:, idx]
+
+
+mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
 
 for batch in val_iter:
     images = batch['image']
     boxes = batch['boxes']
-    for image, box in zip(images, boxes):
-        if DATASET == 'lizard':
-            draw_image = image * 255
-        else:
-            draw_image = image
-        draw_image = draw_image.squeeze(0).permute(1, 2, 0).long()
-        output = predict(image.unsqueeze(0).float())
+
+    batch_output = predict(images)
+
+    update_mean_average_precision(mean_average_precision, boxes, batch_output, score_threshold=0.9)
+
+    continue
+
+    for image, box, output in zip(images, boxes, batch_output):
+        draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
 
         def display(img, output, boxes, threshold):
             for row in output:
@@ -251,3 +259,6 @@ for batch in val_iter:
             plt.show()
 
         display(draw_image, output.cpu(), box, threshold=0.9)
+
+mean_ap = mean_average_precision.compute()
+pprint(mean_ap)
