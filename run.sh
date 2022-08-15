@@ -1,9 +1,6 @@
 #!/bin/bash
 
 case "$1" in
-	t)
-		PYTHONPATH=./src python3 ./tests/test_gpu.py
-		;;
 	li|lizard)
 		PYTHONPATH=./src python3 ./tests/test_lizard.py
 		;;
@@ -17,7 +14,15 @@ case "$1" in
 		det -m "http://localhost:8080" -u admin experiment create ./configs/test_tiny.yaml ./src
 		;;
 	d|det)
+		shift
 		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling "$@"
+		;;
+	t|tensorboard)
+		if [ -z "$2" ]; then
+			echo "missing experiment id"
+			exit 1
+		fi
+		det -m "https://dt1.f4.htw-berlin.de:8443" -u bschilling tensorboard start --config "resources.agent_label=dt-cluster" "$2"
 		;;
 	b)
 		PYTHONPATH=./src ipython ./tests/test_banana.py
