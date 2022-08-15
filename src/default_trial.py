@@ -80,7 +80,7 @@ class DefaultTrial(PyTorchTrial):
             )
             datasets = dataset.split(split_size)
         elif dataset_name == 'banana':
-            dataset_location = '/data/local/banana-detection'
+            dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
             dataset_train = BananasDataset(data_dir=dataset_location, is_train=True, verbose=False)
             dataset_val = BananasDataset(data_dir=dataset_location, is_train=False, verbose=False)
             datasets = (dataset_train, dataset_val)
