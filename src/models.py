@@ -1,6 +1,7 @@
 from typing import List, Tuple
 
 import torch
+from d2l.torch import d2l
 from torch import nn
 import torch.nn.functional as functional
 
@@ -79,7 +80,9 @@ def down_sample_block(in_channels, out_channels) -> nn.Sequential:
     return nn.Sequential(*blk)
 
 
-def base_net() -> nn.Sequential:
+#  --- tiny base net ---
+
+def tiny_base_net() -> nn.Sequential:
     """
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
     """
@@ -90,12 +93,43 @@ def base_net() -> nn.Sequential:
     return nn.Sequential(*blk)
 
 
-def get_blk(i) -> nn.Module:
+#  --- vgg base net ---
+def vgg_block(num_convs, out_channels):
+    layers = []
+    for _ in range(num_convs):
+        layers.append(nn.LazyConv2d(out_channels, kernel_size=3, padding=1))
+        layers.append(nn.ReLU())
+    layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
+    return nn.Sequential(*layers)
+
+
+class VGG(nn.Module):
+    def __init__(self, arch):
+        super().__init__()
+        self.conv_blocks = []
+        for (num_convs, out_channels) in arch:
+            self.conv_blocks.append(vgg_block(num_convs, out_channels))
+
+    @staticmethod
+    def default():
+        return VGG(arch=((1, 64), (1, 128), (2, 256), (2, 512), (2, 512)))
+
+    def forward(self, x):
+        for block in self.conv_blocks:
+            x = block(x)
+            print('output shape:', x.shape)
+        return x
+
+
+def get_blk(i, base_net_arch='tiny') -> nn.Module:
     """
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model
     """
     if i == 0:
-        blk = base_net()
+        if base_net_arch == 'tiny':
+            blk = tiny_base_net()
+        else:
+            raise ValueError('Unknown base_net_arch: \"{}\"'.format(base_net_arch))
     elif i == 1:
         blk = down_sample_block(64, 128)
     elif i == 4:
@@ -106,7 +140,7 @@ def get_blk(i) -> nn.Module:
 
 
 def blk_forward(
-        x: torch.Tensor, block: nn.Sequential, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
+        x: torch.Tensor, block: nn.Module, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
         bbox_predictor: nn.Conv2d
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
@@ -135,32 +169,36 @@ def blk_forward(
 
 
 class TinySSD(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, base_net_arch='tiny', debug=False):
         super(TinySSD, self).__init__()
+        self.debug = debug
         self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
         self.ratios = [[1, 2, 0.5]] * 5
         self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
+        self.blocks = []
+        self.class_predictors = []
+        self.bbox_predictors = []
 
         self.num_classes = num_classes
         idx_to_in_channels = [64, 128, 128, 128, 128]
         for i in range(5):
-            # Equivalent to the assignment statement `self.blk_i = get_blk(i)`
-            setattr(self, f'blk_{i}', get_blk(i))
-            setattr(self, f'cls_{i}', class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
-            setattr(self, f'bbox_{i}', box_predictor(idx_to_in_channels[i], self.num_anchors))
+            self.blocks.append(get_blk(i, base_net_arch=base_net_arch))
+            self.class_predictors.append(class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
+            self.bbox_predictors.append(box_predictor(idx_to_in_channels[i], self.num_anchors))
 
     def forward(self, x):
         anchors, cls_preds, bbox_preds = [], [], []
         for i in range(5):
-            # Here `getattr(self, 'blk_%d' % i)` accesses `self.blk_i`
             x, anchor, cls_pred, bbox_pred = blk_forward(
                 x,
-                getattr(self, f'blk_{i}'),
+                self.blocks[i],
                 self.sizes[i],
                 self.ratios[i],
-                getattr(self, f'cls_{i}'),
-                getattr(self, f'bbox_{i}')
+                self.class_predictors[i],
+                self.bbox_predictors[i],
             )
+            if self.debug:
+                print('blk output {} shape: {}'.format(i, x.shape))
             anchors.append(anchor)
             cls_preds.append(cls_pred)
             bbox_preds.append(bbox_pred)

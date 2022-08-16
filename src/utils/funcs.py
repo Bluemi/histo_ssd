@@ -22,9 +22,10 @@ def draw_boxes(
     Draws the given bounding boxes into the given image.
     :param image: The image to draw in
     :param bounding_boxes: The bounding boxes to draw. A tensor of shape (nBoxes, 4).
-                           Each bounding box is (top, left, bottom, right).
+                           See box_format for more information.
     :param color: The colors to use. If None, black is used. Uses cycling for more boxes than colors.
-    :param box_format: The format of the bounding box. Either tlbr or ltrb
+    :param box_format: The format of the bounding box. Either tlbr (top, left, bottom, right) or
+                       ltrb (left, top, right, bottom).
     """
     bounding_boxes = bounding_boxes.clone()
     # scale box to int position
@@ -59,7 +60,7 @@ def draw_boxes(
         if isinstance(color, list):
             c = color[index % len(color)]
         else:
-            c = (torch.rand(3) * 255).to(torch.int8)
+            c = (torch.rand(3) * 255).to(torch.uint8)
 
         if isinstance(c, tuple):
             c = torch.tensor(c)

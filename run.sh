@@ -26,6 +26,9 @@ case "$1" in
 	o|orig)
 		PYTHONPATH=./src python3 ./tests/test_orig.py
 		;;
+	m|model)
+		PYTHONPATH=./src python3 ./tests/test_model.py
+		;;
 	*)
 		PYTHONPATH=./src python3 ./tests/test_function.py
 		;;
