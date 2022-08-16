@@ -2,8 +2,9 @@ from typing import List, Tuple
 
 import torch
 from torch import nn
+import torch.nn.functional as functional
 
-from utils.bounding_boxes import create_anchor_boxes
+from utils.bounding_boxes import create_anchor_boxes, multibox_detection
 from utils.funcs import debug
 
 
@@ -170,3 +171,28 @@ class TinySSD(nn.Module):
         cls_preds = cls_preds.reshape(cls_preds.shape[0], -1, self.num_classes + 1)
         bbox_preds = concat_preds(bbox_preds)
         return anchors, cls_preds, bbox_preds
+
+
+def predict(model, images, confidence_threshold=0.0) -> List[torch.Tensor]:
+    """
+    Uses the given model to predict boxes for the given batch of images.
+
+    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#prediction
+
+    :param model: The model to use for prediction. model(images) should return
+                  (anchor_boxes, class_predictions, and bounding_box_predictions).
+    :param images: A batch of images with shape (BATCH_SIZE, DEPTH, HEIGHT, WIDTH).
+    :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
+    :return: A list with BATCH_SIZE entries. Each entry is a torch.Tensor with shape (NUM_PREDICTIONS, 6).
+             Each entry of these tensors consists of (class_label, confidence, left, top, right, bottom).
+    """
+    anchors, cls_preds, bbox_preds = model(images)
+    cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
+    output = multibox_detection(cls_probs, bbox_preds, anchors)
+
+    result = []
+    for batch_output in output:
+        idx = [i for i, row in enumerate(batch_output) if row[0] != -1 and row[1] >= confidence_threshold]
+        filtered_batch_output = batch_output[idx]
+        result.append(filtered_batch_output)
+    return result

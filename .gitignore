@@ -134,3 +134,4 @@ dmypy.json
 /data
 /img
 /tests/test_orig.ipynb
+/log.txt

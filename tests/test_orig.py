@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -14,9 +13,9 @@ from pprint import pprint
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
 from metrics import update_mean_average_precision
-from utils.bounding_boxes import create_anchor_boxes, multibox_target, multibox_detection
+from models import TinySSD, predict
+from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
-
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
@@ -30,99 +29,6 @@ elif DATASET == 'lizard':
     NUM_CLASSES = 6
 else:
     raise ValueError('Unknown dataset: {}'.format(DATASET))
-
-
-def cls_predictor(num_inputs, num_anchors, num_classes):
-    return nn.Conv2d(num_inputs, num_anchors * (num_classes + 1), kernel_size=3, padding=1)
-
-
-def bbox_predictor(num_inputs, num_anchors):
-    return nn.Conv2d(num_inputs, num_anchors * 4, kernel_size=3, padding=1)
-
-
-def forward(x, block):
-    return block(x)
-
-
-def flatten_pred(pred):
-    return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
-
-
-def concat_preds(preds):
-    return torch.cat([flatten_pred(p) for p in preds], dim=1)
-
-
-def down_sample_blk(in_channels, out_channels):
-    blk = []
-    for _ in range(2):
-        blk.append(nn.Conv2d(in_channels, out_channels,
-                             kernel_size=3, padding=1))
-        blk.append(nn.BatchNorm2d(out_channels))
-        blk.append(nn.ReLU())
-        in_channels = out_channels
-    blk.append(nn.MaxPool2d(2))
-    return nn.Sequential(*blk)
-
-
-def base_net():
-    blk = []
-    num_filters = [3, 16, 32, 64]
-    for i in range(len(num_filters) - 1):
-        blk.append(down_sample_blk(num_filters[i], num_filters[i+1]))
-    return nn.Sequential(*blk)
-
-
-def get_blk(i):
-    if i == 0:
-        blk = base_net()
-    elif i == 1:
-        blk = down_sample_blk(64, 128)
-    elif i == 4:
-        blk = nn.AdaptiveMaxPool2d((1,1))
-    else:
-        blk = down_sample_blk(128, 128)
-    return blk
-
-
-def blk_forward(x, blk, size, ratio, cls_predictor, bbox_predictor):
-    y = blk(x)
-    anchors = create_anchor_boxes(y.shape[-2:], scales=size, ratios=ratio, device=y.device)
-    cls_preds = cls_predictor(y)
-    bbox_preds = bbox_predictor(y)
-    return y, anchors, cls_preds, bbox_preds
-
-
-sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
-ratios = [[1, 2, 0.5]] * 5
-num_anchors = len(sizes[0]) + len(ratios[0]) - 1
-
-
-class TinySSD(nn.Module):
-    def __init__(self, num_classes):
-        super(TinySSD, self).__init__()
-        self.num_classes = num_classes
-        idx_to_in_channels = [64, 128, 128, 128, 128]
-        for i in range(5):
-            # Equivalent to the assignment statement `self.blk_i = get_blk(i)`
-            setattr(self, f'blk_{i}', get_blk(i))
-            setattr(self, f'cls_{i}', cls_predictor(idx_to_in_channels[i],
-                                                    num_anchors, num_classes))
-            setattr(self, f'bbox_{i}', bbox_predictor(idx_to_in_channels[i],
-                                                      num_anchors))
-
-    def forward(self, X):
-        anchors, cls_preds, bbox_preds = [None] * 5, [None] * 5, [None] * 5
-        for i in range(5):
-            # Here `getattr(self, 'blk_%d' % i)` accesses `self.blk_i`
-            X, anchors[i], cls_preds[i], bbox_preds[i] = blk_forward(
-                X, getattr(self, f'blk_{i}'), sizes[i], ratios[i],
-                getattr(self, f'cls_{i}'), getattr(self, f'bbox_{i}'))
-        anchors = torch.cat(anchors, dim=1)
-        cls_preds = concat_preds(cls_preds)
-        cls_preds = cls_preds.reshape(
-            cls_preds.shape[0], -1, self.num_classes + 1)
-        bbox_preds = concat_preds(bbox_preds)
-        return anchors, cls_preds, bbox_preds
 
 
 batch_size = 32
@@ -217,36 +123,24 @@ else:
 
 # Prediction
 
-def predict(x):
-    net.eval()
-    anchors, cls_preds, bbox_preds = net(x.to(device))
-    cls_probs = F.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = multibox_detection(cls_probs, bbox_preds, anchors)
-    idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
-    return output[:, idx]
-
-
 mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
-
+net.eval()
 for batch in val_iter:
     images = batch['image']
-    boxes = batch['boxes']
+    ground_truth_boxes = batch['boxes']
 
-    batch_output = predict(images)
+    batch_output = predict(net, images, confidence_threshold=0.9)
 
-    update_mean_average_precision(mean_average_precision, boxes, batch_output, score_threshold=0.9)
+    update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 
     continue
-
-    for image, box, output in zip(images, boxes, batch_output):
+    # noinspection PyUnreachableCode
+    for image, ground_truth_box, output in zip(images, ground_truth_boxes, batch_output):
         draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
 
-        def display(img, output, boxes, threshold):
-            for row in output:
-                score = float(row[1])
-                if score < threshold:
-                    continue
+        def display(img, out, boxes):
+            for row in out:
                 bbox = row[2:6].unsqueeze(0)
                 draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
             if DISPLAY_GROUND_TRUTH:
@@ -258,7 +152,7 @@ for batch in val_iter:
             plt.imshow(img)
             plt.show()
 
-        display(draw_image, output.cpu(), box, threshold=0.9)
+        display(draw_image, output, ground_truth_box)
 
 mean_ap = mean_average_precision.compute()
 pprint(mean_ap)
