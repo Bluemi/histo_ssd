@@ -127,7 +127,6 @@ def blk_forward(
                               [BATCH_SIZE, NUM_ANCHORS * (NUM_CLASSES + 1), OUT_HEIGHT, OUT_WIDTH]
                  - bbox_preds: The prediction of bounding boxes with shape
                                [BATCH_SIZE, NUM_ANCHORS * 4, OUT_HEIGHT, OUT_WIDTH]
-    TODO: check shapes of args and returns
     """
     y = block(x)
     anchors = create_anchor_boxes(shape=y.shape[-2:], scales=sizes, ratios=ratios, device=y.device)
@@ -190,6 +189,7 @@ def predict(model, images, confidence_threshold=0.0) -> List[torch.Tensor]:
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
     output = multibox_detection(cls_probs, bbox_preds, anchors)
 
+    # filter out background and low confidences
     result = []
     for batch_output in output:
         idx = [i for i, row in enumerate(batch_output) if row[0] != -1 and row[1] >= confidence_threshold]

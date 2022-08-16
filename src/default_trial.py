@@ -1,23 +1,23 @@
-import auto_log
-
-auto_log.init_auto_log('bruno')
-
-from typing import Tuple, Dict, Any
-import matplotlib
+from typing import Tuple, Dict, Any, List
 import numpy as np
 import torch
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
-from torch.nn import functional
+from torchmetrics.detection import MeanAveragePrecision
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 import matplotlib.pyplot as plt
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import BananasDataset
-from models import TinySSD
-from utils.bounding_boxes import multibox_target, multibox_detection
+from models import TinySSD, predict
+from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
+from metrics import update_mean_average_precision
+import auto_log
+
+
+auto_log.init_auto_log('bruno')
 
 
 class DefaultTrial(PyTorchTrial):
@@ -134,31 +134,50 @@ class DefaultTrial(PyTorchTrial):
             'loss': loss,
         }
 
-    """
-    def evaluate_batch(self, batch: TorchData, batch_idx: int) -> Dict[str, Any]:
-        image = batch['image']
-        boxes = batch['boxes']
+    def write_prediction_images(
+            self, batch_output: List[torch.Tensor], batch: Dict[str, torch.Tensor], batch_idx: int, image_counter: int
+    ) -> int:
+        """
+        Writes prediction images to tblogger.
 
-        with torch.no_grad():
-            anchors, cls_preds, bbox_preds = self.network(image)
-            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
-            loss = self._calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks).mean()
+        :param batch_output: The output of the model
+        :param batch: The ground truth batch
+        :param batch_idx: The current batch index
+        :param image_counter: The number of images already logged for this epoch.
+        """
+        image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
+        for image, boxes, output in zip(batch['image'], batch['boxes'], batch_output):
+            image = image.to(self.context.device)
+            draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
 
-        return {
-            'loss': loss,
-        }
-    """
+            # draw predictions
+            for row in output:
+                score = float(row[1])
+                if score < self.context.get_hparam('image_prediction_score_threshold'):
+                    continue
+                bbox = row[2:6].unsqueeze(0)
+                draw_boxes(draw_image, bbox, color=(255, 0, 0), box_format='ltrb')
+            # draw ground truth
+            for box in boxes:
+                if box[0] < 0:
+                    continue
+                bbox = box[1:5].unsqueeze(0)
+                draw_boxes(draw_image, bbox, color=(0, 255, 0), box_format='ltrb')
 
-    def predict(self, x):
-        anchors, cls_preds, bbox_preds = self.network(x)
-        cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
-        output = multibox_detection(cls_probs, bbox_preds, anchors)
-        idx = [i for i, row in enumerate(output[0]) if row[0] != -1]
-        return output[0, idx]  # TODO: replace 0 with :
+            fig = plt.figure(figsize=(10, 10))
+            plt.imshow(draw_image.cpu())
+            self.tblogger.writer.add_figure(
+                f'Prediction_batch_{batch_idx}_{image_counter}',
+                fig,
+                global_step=batch_idx
+            )
+            image_counter += 1
+            if image_counter >= image_prediction_max_images:
+                return image_counter
 
     def evaluate_full_dataset(self, data_loader: torch.utils.data.DataLoader) -> Dict[str, Any]:
         """
-        Calculates the mean average precision for the full evaluation dataset. TODO
+        Calculates the mean average precision for the full evaluation dataset.
         Also shows some images of predictions of the model
 
         :param data_loader: The dataloader of the evaluation dataset.
@@ -168,44 +187,21 @@ class DefaultTrial(PyTorchTrial):
         batch_idx = self.context._current_batch_idx + 1
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
 
+        mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
+
         image_counter = 0
         for batch in data_loader:
-            for image, boxes in zip(batch['image'], batch['boxes']):
-                image = image.to(self.context.device)
-                draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
-                output = self.predict(image.unsqueeze(0).float())
+            batch_output = predict(self.network, batch['image'])
 
-                # draw predictions
-                for row in output:
-                    score = float(row[1])
-                    if score < self.context.get_hparam('image_prediction_score_threshold'):
-                        continue
-                    bbox = row[2:6].unsqueeze(0)
-                    draw_boxes(draw_image, bbox, color=(255, 0, 0), box_format='ltrb')
-                # draw ground truth
-                for box in boxes:
-                    if box[0] < 0:
-                        continue
-                    bbox = box[1:5].unsqueeze(0)
-                    draw_boxes(draw_image, bbox, color=(0, 255, 0), box_format='ltrb')
+            update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
 
-                fig: matplotlib.figure.Figure = plt.figure(figsize=(10, 10))
-                plt.imshow(draw_image.cpu())
-                self.tblogger.writer.add_figure(
-                    f'Prediction_batch_{batch_idx}_{image_counter}',
-                    fig,
-                    global_step=batch_idx
-                )
-                image_counter += 1
-                if image_counter >= image_prediction_max_images:
-                    break
-            if image_counter >= image_prediction_max_images:
-                break
+            # write prediction images
+            if image_counter < image_prediction_max_images:
+                image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
 
-        return {
-            'mAP': 0.0,  # TODO
-            'loss': 0.0,  # TODO
-        }
+        result = mean_average_precision.compute()
+
+        return result
 
     def build_training_data_loader(self) -> DataLoader:
         return DataLoader(

@@ -132,7 +132,7 @@ for batch in val_iter:
     images = batch['image']
     ground_truth_boxes = batch['boxes']
 
-    batch_output = predict(net, images, confidence_threshold=0.7)
+    batch_output = predict(net, images, confidence_threshold=0.8)
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 
