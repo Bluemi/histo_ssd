@@ -172,7 +172,7 @@ class TinySSD(nn.Module):
         return anchors, cls_preds, bbox_preds
 
 
-def predict(model, images, confidence_threshold=0.0) -> List[torch.Tensor]:
+def predict(model, images, device='cpu', confidence_threshold=0.0) -> List[torch.Tensor]:
     """
     Uses the given model to predict boxes for the given batch of images.
 
@@ -181,11 +181,13 @@ def predict(model, images, confidence_threshold=0.0) -> List[torch.Tensor]:
     :param model: The model to use for prediction. model(images) should return
                   (anchor_boxes, class_predictions, and bounding_box_predictions).
     :param images: A batch of images with shape (BATCH_SIZE, DEPTH, HEIGHT, WIDTH).
+    :param device: The torch device used for computation.
     :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
+
     :return: A list with BATCH_SIZE entries. Each entry is a torch.Tensor with shape (NUM_PREDICTIONS, 6).
              Each entry of these tensors consists of (class_label, confidence, left, top, right, bottom).
     """
-    anchors, cls_preds, bbox_preds = model(images)
+    anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
     output = multibox_detection(cls_probs, bbox_preds, anchors)
 

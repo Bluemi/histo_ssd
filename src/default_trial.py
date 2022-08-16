@@ -191,7 +191,7 @@ class DefaultTrial(PyTorchTrial):
 
         image_counter = 0
         for batch in data_loader:
-            batch_output = predict(self.network, batch['image'])
+            batch_output = predict(self.network, batch['image'], device=self.context.device)
 
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
 

@@ -22,7 +22,8 @@ def update_mean_average_precision(
     target = []
     preds = []
     # debug(predictions.shape)
-    for sample_ground_truth_boxes, sample_predictions in zip(ground_truth_boxes, predictions):
+    for sample_ground_truth_boxes, sample_predictions in zip(ground_truth_boxes.cpu(), predictions):
+        sample_predictions = sample_predictions.cpu()
         # ground truth
         valid_box_indices = sample_ground_truth_boxes[:, 0] != -1.0  # filter out invalid boxes
         target_example = {
