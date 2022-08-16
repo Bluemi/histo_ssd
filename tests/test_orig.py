@@ -152,9 +152,9 @@ for batch in val_iter:
                         draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
                 plt.imshow(img)
                 plt.draw()
-                key = plt.waitforbuttonpress()
+                k = plt.waitforbuttonpress()
                 plt.close()
-                return key
+                return k
 
             key = display(draw_image, output, ground_truth_box)
             if not key:
