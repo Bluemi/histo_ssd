@@ -13,7 +13,7 @@ from datasets.banana_dataset import BananasDataset
 from models import TinySSD, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
-from metrics import update_mean_average_precision
+from utils.metrics import update_mean_average_precision
 import auto_log
 
 

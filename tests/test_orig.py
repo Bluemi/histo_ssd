@@ -12,7 +12,7 @@ from pprint import pprint
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
-from metrics import update_mean_average_precision
+from utils.metrics import update_mean_average_precision
 from models import TinySSD, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
