@@ -125,34 +125,41 @@ else:
 
 mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
+do_display = True
+
 net.eval()
 for batch in val_iter:
     images = batch['image']
     ground_truth_boxes = batch['boxes']
 
-    batch_output = predict(net, images, confidence_threshold=0.9)
+    batch_output = predict(net, images, confidence_threshold=0.7)
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 
-    continue
-    # noinspection PyUnreachableCode
-    for image, ground_truth_box, output in zip(images, ground_truth_boxes, batch_output):
-        draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
+    if do_display:
+        for image, ground_truth_box, output in zip(images, ground_truth_boxes, batch_output):
+            draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
 
-        def display(img, out, boxes):
-            for row in out:
-                bbox = row[2:6].unsqueeze(0)
-                draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
-            if DISPLAY_GROUND_TRUTH:
-                for box in boxes:
-                    if box[0] < 0:
-                        continue
-                    bbox = box[1:5].unsqueeze(0)
-                    draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
-            plt.imshow(img)
-            plt.show()
+            def display(img, out, boxes):
+                for row in out:
+                    bbox = row[2:6].unsqueeze(0)
+                    draw_boxes(img, bbox, color=(255, 0, 0), box_format='ltrb')
+                if DISPLAY_GROUND_TRUTH:
+                    for box in boxes:
+                        if box[0] < 0:
+                            continue
+                        bbox = box[1:5].unsqueeze(0)
+                        draw_boxes(img, bbox, color=(0, 255, 0), box_format='ltrb')
+                plt.imshow(img)
+                plt.draw()
+                key = plt.waitforbuttonpress()
+                plt.close()
+                return key
 
-        display(draw_image, output, ground_truth_box)
+            key = display(draw_image, output, ground_truth_box)
+            if not key:
+                do_display = False
+                break
 
 mean_ap = mean_average_precision.compute()
 pprint(mean_ap)
