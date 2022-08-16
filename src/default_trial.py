@@ -201,6 +201,8 @@ class DefaultTrial(PyTorchTrial):
 
         result = mean_average_precision.compute()
 
+        # TODO: result['map_per_class'] should be returned separate for each class
+
         return result
 
     def build_training_data_loader(self) -> DataLoader:
