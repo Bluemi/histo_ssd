@@ -5,7 +5,6 @@ from torch import nn
 import torch.nn.functional as functional
 
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
-from utils.funcs import debug
 
 
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:

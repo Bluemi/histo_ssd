@@ -12,7 +12,7 @@ from pprint import pprint
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
-from utils.metrics import update_mean_average_precision
+from utils.metrics import update_mean_average_precision, calc_loss, cls_eval, bbox_eval
 from models import TinySSD, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
@@ -64,25 +64,6 @@ else:
 device = torch.device('cpu')
 net = TinySSD(num_classes=NUM_CLASSES)
 trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
-
-cls_loss = nn.CrossEntropyLoss(reduction='none')
-bbox_loss = nn.L1Loss(reduction='none')
-
-
-def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks):
-    batch_size, num_classes = cls_preds.shape[0], cls_preds.shape[2]
-    cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1).mean(dim=1)
-    bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)
-    return cls + bbox
-
-
-def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
-    # Because the class prediction results are on the final dimension, `argmax` needs to specify this dimension
-    return float((cls_preds.argmax(dim=-1).type(cls_labels.dtype) == cls_labels).sum())
-
-
-def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
-    return float((torch.abs((bbox_labels - bbox_preds) * bbox_masks)).sum())
 
 
 num_epochs = 20
