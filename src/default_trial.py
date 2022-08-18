@@ -14,10 +14,6 @@ from models import TinySSD, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision
-from utils import auto_log
-
-
-auto_log.init_auto_log('bruno')
 
 
 class DefaultTrial(PyTorchTrial):
