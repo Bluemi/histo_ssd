@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 
 from models import TinySSD, VGG
 from utils.funcs import debug, draw_boxes
+from torchvision.models.detection import ssd
 
 
 def main():
@@ -33,12 +34,18 @@ def main():
 
 
 def test_vgg():
-    model = VGG.default()
+    model = VGG.ssd_vgg16(debug=True)
     with torch.no_grad():
-        image = torch.zeros((32, 3, 256, 256))
+        input_size = 300
+        image = torch.zeros((1, 3, input_size, input_size))
         embedding = model(image)
 
-    print(embedding.shape)
+    print('\nembedding shape:', embedding.shape)
+
+
+def test_torchvision():
+    model = ssd.ssd300_vgg16(pretrained_backbone=False)
+    print(model)
 
 
 def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
@@ -63,3 +70,4 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 if __name__ == '__main__':
     # main()
     test_vgg()
+    # test_torchvision()

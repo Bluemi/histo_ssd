@@ -1,7 +1,6 @@
 from typing import List, Tuple
 
 import torch
-from d2l.torch import d2l
 from torch import nn
 import torch.nn.functional as functional
 
@@ -94,30 +93,145 @@ def tiny_base_net() -> nn.Sequential:
 
 
 #  --- vgg base net ---
-def vgg_block(num_convs, out_channels):
+def vgg_block(num_convs, out_channels) -> List[nn.Module]:
     layers = []
     for _ in range(num_convs):
         layers.append(nn.LazyConv2d(out_channels, kernel_size=3, padding=1))
         layers.append(nn.ReLU())
     layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-    return nn.Sequential(*layers)
+    return layers
 
 
 class VGG(nn.Module):
-    def __init__(self, arch):
+    def __init__(self, layers: List, debug=False):
         super().__init__()
-        self.conv_blocks = []
-        for (num_convs, out_channels) in arch:
-            self.conv_blocks.append(vgg_block(num_convs, out_channels))
+        self.layers = layers
+        self.debug = debug
 
     @staticmethod
-    def default():
-        return VGG(arch=((1, 64), (1, 128), (2, 256), (2, 512), (2, 512)))
+    def vgg11(debug=False):
+        layers = [
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+        ]
+        return VGG(layers=layers, debug=debug)
+
+    @staticmethod
+    def vgg16(debug=False):
+        layers = [
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+        ]
+        return VGG(layers=layers, debug=debug)
+
+    @staticmethod
+    def ssd_vgg16(debug=False):
+        layers = [
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            nn.ReLU(),
+            # nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
+
+            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            # nn.ReLU(),
+            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            # nn.ReLU(),
+            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            # nn.ReLU(),
+            # nn.MaxPool2d(kernel_size=3, stride=1, padding=0),  # change pool5 from 2x2-s2 to 3x3 s1
+
+            # # additional conv layers, from "we convert fc6 and fc7 to convolutional layers"
+            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            # nn.ReLU(),
+            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+            # nn.ReLU(),
+        ]
+        return VGG(layers=layers, debug=debug)
 
     def forward(self, x):
-        for block in self.conv_blocks:
-            x = block(x)
-            print('output shape:', x.shape)
+        for layer in self.layers:
+            x = layer(x)
+            if self.debug:
+                print('layer {}: {}'.format(layer, x.shape))
         return x
 
 
