@@ -1,7 +1,7 @@
 import torch
 from matplotlib import pyplot as plt
 
-from models import TinySSD, VGG
+from models import TinySSD, VGG, tiny_base_net
 from utils.funcs import debug, draw_boxes
 from torchvision.models.detection import ssd
 
@@ -35,10 +35,13 @@ def main():
 
 def test_vgg():
     model = VGG.ssd_vgg16(debug=True)
+    # model = tiny_base_net()
     with torch.no_grad():
         input_size = 300
         image = torch.zeros((1, 3, input_size, input_size))
         embedding = model(image)
+
+    print(model)
 
     print('\nembedding shape:', embedding.shape)
 
@@ -70,4 +73,4 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 if __name__ == '__main__':
     # main()
     test_vgg()
-    # test_torchvision()
+    test_torchvision()
