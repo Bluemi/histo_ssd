@@ -1,18 +1,17 @@
 import torch
 from matplotlib import pyplot as plt
 
-from models import TinySSD, VGG, tiny_base_net
+from models import SSDModel, VGG
 from utils.funcs import debug, draw_boxes
 from torchvision.models.detection import ssd
 
 
 def main():
-    model = TinySSD(num_classes=1, debug=True)
+    model = SSDModel(num_classes=1, debug=True, backbone_arch='vgg16')
     model.eval()
 
-    base_model: torch.nn.Sequential = model.blocks[0]
-
-    print(base_model._modules)
+    # base_model: torch.nn.Sequential = model.blocks[0]
+    # print(base_model._modules)
 
     with torch.no_grad():
         image = torch.zeros((32, 3, 256, 256))
@@ -26,8 +25,8 @@ def main():
 
     black_image = torch.zeros((1024, 1024, 3), dtype=torch.int)
 
-    add_boxes(black_image, anchors, x=0.5, y=0.5, level=0, num_boxes=1, color=(255, 0, 0))
-    # add_boxes(black_image, anchors, x=16, y=16, level=0,size=32, color=(0, 255, 0))
+    add_boxes(black_image, anchors, x=15, y=15, level=0, num_boxes=2, color=(255, 0, 0))
+    add_boxes(black_image, anchors, x=16, y=16, level=0, num_boxes=2, color=(0, 255, 0))
 
     plt.imshow(black_image)
     plt.show()
@@ -71,6 +70,6 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 
 
 if __name__ == '__main__':
-    # main()
-    test_vgg()
-    test_torchvision()
+    main()
+    # test_vgg()
+    # test_torchvision()

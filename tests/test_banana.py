@@ -5,11 +5,11 @@ from torch import nn
 from tqdm import tqdm
 
 from datasets.banana_dataset import load_data_bananas
-from models import TinySSD
+from models import SSDModel
 
 
 def main():
-    net = TinySSD(num_classes=1)
+    net = SSDModel(num_classes=1)
     X = torch.zeros((32, 3, 256, 256))
     anchors, cls_preds, bbox_preds = net(X)
 
@@ -20,7 +20,7 @@ def main():
     batch_size = 32
     train_iter, _ = load_data_bananas(batch_size)
 
-    device, net = 'cpu', TinySSD(num_classes=1)
+    device, net = 'cpu', SSDModel(num_classes=1)
     trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
 
     cls_loss = nn.CrossEntropyLoss(reduction='none')

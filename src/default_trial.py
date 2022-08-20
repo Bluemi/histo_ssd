@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import BananasDataset
-from models import TinySSD, predict
+from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision
@@ -28,7 +28,7 @@ class DefaultTrial(PyTorchTrial):
         # Creates a feature vector
         model = self.context.get_hparam('model')
         if model == 'tiny_ssd':
-            network = TinySSD(num_classes=self.num_classes)
+            network = SSDModel(num_classes=self.num_classes)
         else:
             raise ValueError('Unknown model \"{}\"'.format(model))
 

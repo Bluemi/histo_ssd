@@ -4,7 +4,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchmetrics.detection.mean_ap import MeanAveragePrecision
@@ -13,7 +12,7 @@ from pprint import pprint
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
 from utils.metrics import update_mean_average_precision, calc_loss, cls_eval, bbox_eval
-from models import TinySSD, predict
+from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
 
@@ -62,7 +61,7 @@ else:
 
 
 device = torch.device('cpu')
-net = TinySSD(num_classes=NUM_CLASSES)
+net = SSDModel(num_classes=NUM_CLASSES)
 trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
 
 
@@ -98,6 +97,7 @@ else:
             metric[3] += bbox_labels.numel()
         cls_err, bbox_mae = 1 - metric[0] / metric[1], metric[2] / metric[3]
     print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
+    # noinspection PyTypeChecker
     print(f'{len(train_iter.dataset)} examples on {str(device)}')
     torch.save(net.state_dict(), MODEL_LOAD_PATH)
 

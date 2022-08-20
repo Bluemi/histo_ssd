@@ -103,10 +103,11 @@ def vgg_block(num_convs, out_channels) -> List[nn.Module]:
 
 
 class VGG(nn.Module):
-    def __init__(self, layers: List, debug=False):
+    def __init__(self, layers: List, last_out_channels: int, debug=False):
         super().__init__()
         self.layers = layers
         self.debug = debug
+        self.last_out_channels = last_out_channels
 
     @staticmethod
     def vgg11(debug=False):
@@ -137,7 +138,7 @@ class VGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return VGG(layers=layers, debug=debug)
+        return VGG(layers=layers, debug=debug, last_out_channels=512)
 
     @staticmethod
     def vgg16(debug=False):
@@ -178,7 +179,7 @@ class VGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return VGG(layers=layers, debug=debug)
+        return VGG(layers=layers, debug=debug, last_out_channels=512)
 
     @staticmethod
     def ssd_vgg16(debug=False):
@@ -225,7 +226,7 @@ class VGG(nn.Module):
             # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
             # nn.ReLU(),
         ]
-        return VGG(layers=layers, debug=debug)
+        return VGG(layers=layers, debug=debug, last_out_channels=512)
 
     def forward(self, x):
         for layer in self.layers:
@@ -235,18 +236,13 @@ class VGG(nn.Module):
         return x
 
 
-def get_blk(i, base_net_arch='tiny') -> nn.Module:
+def get_blk(i, last_out_channels) -> nn.Module:
     """
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model
     """
     if i == 0:
-        if base_net_arch == 'tiny':
-            blk = tiny_base_net()
-        else:
-            raise ValueError('Unknown base_net_arch: \"{}\"'.format(base_net_arch))
-    elif i == 1:
-        blk = down_sample_block(64, 128)
-    elif i == 4:
+        blk = down_sample_block(last_out_channels, 128)
+    elif i == 3:
         blk = nn.AdaptiveMaxPool2d((1, 1))
     else:
         blk = down_sample_block(128, 128)
@@ -282,10 +278,11 @@ def blk_forward(
     return y, anchors, cls_preds, bbox_preds
 
 
-class TinySSD(nn.Module):
-    def __init__(self, num_classes, base_net_arch='tiny', debug=False):
-        super(TinySSD, self).__init__()
+class SSDModel(nn.Module):
+    def __init__(self, num_classes, backbone_arch='tiny', debug=False):
+        super(SSDModel, self).__init__()
         self.debug = debug
+        # TODO: are sizes correct for different models?
         self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
         self.ratios = [[1, 2, 0.5]] * 5
         self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
@@ -294,9 +291,21 @@ class TinySSD(nn.Module):
         self.bbox_predictors = []
 
         self.num_classes = num_classes
-        idx_to_in_channels = [64, 128, 128, 128, 128]
-        for i in range(5):
-            self.blocks.append(get_blk(i, base_net_arch=base_net_arch))
+        idx_to_in_channels = [128, 128, 128, 128]
+
+        # create backbone
+        if backbone_arch == 'tiny':
+            backbone = tiny_base_net()
+        elif backbone_arch == 'vgg16':
+            backbone = VGG.ssd_vgg16()
+        else:
+            raise ValueError('Unknown backbone architecture: \"{}\"'.format(backbone_arch))
+        self.blocks.append(backbone)
+        self.class_predictors.append(class_predictor(backbone.last_out_channels, self.num_anchors, num_classes))
+        self.bbox_predictors.append(box_predictor(backbone.last_out_channels, self.num_anchors))
+
+        for i in range(4):
+            self.blocks.append(get_blk(i, last_out_channels=backbone.last_out_channels))
             self.class_predictors.append(class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
             self.bbox_predictors.append(box_predictor(idx_to_in_channels[i], self.num_anchors))
 
