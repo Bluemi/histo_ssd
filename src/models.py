@@ -81,7 +81,30 @@ def down_sample_block(in_channels, out_channels) -> nn.Sequential:
 
 #  --- tiny base net ---
 
-def tiny_base_net() -> nn.Sequential:
+class Backbone(nn.Module):
+    def __init__(self, layers):
+        super().__init__()
+        self.layers = layers
+        self.model = nn.Sequential(layers)
+
+    def last_out_channels(self) -> int:
+        layer: nn.Conv2d = self.layers[-1]
+        return layer.out_channels
+
+
+class TinyBackbone(nn.Module):
+    def __init__(self, layers, last_out_channels):
+        super().__init__()
+        self.layers = layers
+        self.last_out_channels = last_out_channels
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+def tiny_base_net() -> TinyBackbone:
     """
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
     """
@@ -89,7 +112,7 @@ def tiny_base_net() -> nn.Sequential:
     num_filters = [3, 16, 32, 64]
     for i in range(len(num_filters) - 1):
         blk.append(down_sample_block(num_filters[i], num_filters[i+1]))
-    return nn.Sequential(*blk)
+    return TinyBackbone(blk, last_out_channels=64)
 
 
 #  --- vgg base net ---

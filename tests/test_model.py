@@ -1,5 +1,6 @@
 import torch
 from matplotlib import pyplot as plt
+from torch import nn
 
 from models import SSDModel, VGG
 from utils.funcs import debug, draw_boxes
@@ -69,7 +70,20 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
     draw_boxes(image, draw_anchors, box_format='ltrb', color=color)
 
 
+def test_i():
+    class TestModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            # self.layer = nn.Linear(10, 10)
+            self.layers = [nn.Linear(10, 10)]
+
+    model = TestModel()
+    print(list(model.parameters()))
+
+
+
 if __name__ == '__main__':
-    main()
+    # main()
     # test_vgg()
     # test_torchvision()
+    test_i()

@@ -61,7 +61,7 @@ else:
 
 
 device = torch.device('cpu')
-net = SSDModel(num_classes=NUM_CLASSES)
+net = SSDModel(num_classes=NUM_CLASSES, backbone_arch='tiny')
 trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
 
 
