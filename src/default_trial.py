@@ -26,19 +26,16 @@ class DefaultTrial(PyTorchTrial):
         self.num_classes = self._get_num_classes()
 
         # Creates a feature vector
-        model = self.context.get_hparam('model')
-        if model == 'tiny_ssd':
-            network = SSDModel(num_classes=self.num_classes)
-        else:
-            raise ValueError('Unknown model \"{}\"'.format(model))
+        backbone_arch = self.context.get_hparam('backbone_arch')
+        model = SSDModel(num_classes=self.num_classes, backbone_arch=backbone_arch)
 
         # pred layer
-        self.network = self.context.wrap_model(network)
+        self.model = self.context.wrap_model(model)
 
         optimizer_name = self.context.get_hparam('optimizer')
         if optimizer_name == 'sgd':
             optimizer = torch.optim.SGD(
-                self.network.parameters(),
+                self.model.parameters(),
                 lr=self.context.get_hparam('learning_rate'),
                 # momentum=0.9, TODO: try momentum
                 weight_decay=self.context.get_hparam('l2_regularization')
@@ -120,7 +117,7 @@ class DefaultTrial(PyTorchTrial):
         boxes = batch['boxes']
         self.optimizer.zero_grad()
 
-        anchors, cls_preds, bbox_preds = self.network(image)
+        anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
         loss = self._calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks).mean()
         self.context.backward(loss)
@@ -187,7 +184,7 @@ class DefaultTrial(PyTorchTrial):
 
         image_counter = 0
         for batch in data_loader:
-            batch_output = predict(self.network, batch['image'], device=self.context.device)
+            batch_output = predict(self.model, batch['image'], device=self.context.device)
 
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
 

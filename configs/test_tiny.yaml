@@ -5,7 +5,7 @@ hyperparameters:
   dataset: "banana"
   dataset_split_size: 0.8
   num_workers: 8
-  model: "tiny_ssd"
+  backbone_arch: "tiny"
   optimizer: "sgd"
   learning_rate: 0.2
   l2_regularization: 1e-5

@@ -1,28 +1,28 @@
 import torch
 from matplotlib import pyplot as plt
-from torch import nn
 
-from models import SSDModel, VGG
+from models import SSDModel, Backbone
 from utils.funcs import debug, draw_boxes
 from torchvision.models.detection import ssd
 
 
 def main():
-    model = SSDModel(num_classes=1, debug=True, backbone_arch='vgg16')
+    model = SSDModel(num_classes=1, debug=True, backbone_arch='tiny')
+    print(model)
     model.eval()
 
     # base_model: torch.nn.Sequential = model.blocks[0]
     # print(base_model._modules)
 
     with torch.no_grad():
-        image = torch.zeros((32, 3, 256, 256))
+        image = torch.zeros((1, 3, 256, 256))
         anchors, cls_preds, bbox_preds = model(image)
 
     anchors = anchors.squeeze(0)
 
     debug(anchors.shape)
     debug(cls_preds.shape)
-    debug(bbox_preds.reshape((32, -1, 4)).shape)
+    debug(bbox_preds.reshape((1, -1, 4)).shape)
 
     black_image = torch.zeros((1024, 1024, 3), dtype=torch.int)
 
@@ -34,7 +34,7 @@ def main():
 
 
 def test_vgg():
-    model = VGG.ssd_vgg16(debug=True)
+    model = Backbone.ssd_vgg16(debug=True)
     # model = tiny_base_net()
     with torch.no_grad():
         input_size = 300
@@ -70,20 +70,7 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
     draw_boxes(image, draw_anchors, box_format='ltrb', color=color)
 
 
-def test_i():
-    class TestModel(nn.Module):
-        def __init__(self):
-            super().__init__()
-            # self.layer = nn.Linear(10, 10)
-            self.layers = [nn.Linear(10, 10)]
-
-    model = TestModel()
-    print(list(model.parameters()))
-
-
-
 if __name__ == '__main__':
-    # main()
+    main()
     # test_vgg()
     # test_torchvision()
-    test_i()

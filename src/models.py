@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Iterable, Reversible
 
 import torch
 from torch import nn
@@ -79,58 +79,42 @@ def down_sample_block(in_channels, out_channels) -> nn.Sequential:
     return nn.Sequential(*blk)
 
 
-#  --- tiny base net ---
+#  --- backbone ---
+class NoConvException(Exception):
+    pass
+
+
+def search_last_conv(layers: Reversible[nn.Module]) -> nn.Conv2d:
+    for layer in reversed(layers):
+        if isinstance(layer, nn.Conv2d):
+            return layer
+        elif isinstance(layer, nn.Sequential):
+            try:
+                layer_modules = list(layer.modules())
+                return search_last_conv(layer_modules)
+            except NoConvException:
+                pass
+    raise NoConvException('Unable to find conv layer.\n{}'.format('\n'.join(map(str, layers))))
+
 
 class Backbone(nn.Module):
-    def __init__(self, layers):
+    def __init__(self, layers: List, debug: bool = False):
         super().__init__()
-        self.layers = layers
-        self.model = nn.Sequential(layers)
+        self.debug = debug
 
-    def last_out_channels(self) -> int:
-        layer: nn.Conv2d = self.layers[-1]
-        return layer.out_channels
+        # last conv layer
+        last_conv_layer = search_last_conv(layers)
+        self.last_out_channels = last_conv_layer.out_channels
 
-
-class TinyBackbone(nn.Module):
-    def __init__(self, layers, last_out_channels):
-        super().__init__()
-        self.layers = layers
-        self.last_out_channels = last_out_channels
+        # model
+        self.layers = nn.ModuleList(layers)
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
+            if self.debug:
+                print('{}: {}'.format(layer, x.shape))
         return x
-
-
-def tiny_base_net() -> TinyBackbone:
-    """
-    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
-    """
-    blk = []
-    num_filters = [3, 16, 32, 64]
-    for i in range(len(num_filters) - 1):
-        blk.append(down_sample_block(num_filters[i], num_filters[i+1]))
-    return TinyBackbone(blk, last_out_channels=64)
-
-
-#  --- vgg base net ---
-def vgg_block(num_convs, out_channels) -> List[nn.Module]:
-    layers = []
-    for _ in range(num_convs):
-        layers.append(nn.LazyConv2d(out_channels, kernel_size=3, padding=1))
-        layers.append(nn.ReLU())
-    layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
-    return layers
-
-
-class VGG(nn.Module):
-    def __init__(self, layers: List, last_out_channels: int, debug=False):
-        super().__init__()
-        self.layers = layers
-        self.debug = debug
-        self.last_out_channels = last_out_channels
 
     @staticmethod
     def vgg11(debug=False):
@@ -161,7 +145,7 @@ class VGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return VGG(layers=layers, debug=debug, last_out_channels=512)
+        return Backbone(layers=layers, debug=debug)
 
     @staticmethod
     def vgg16(debug=False):
@@ -202,7 +186,7 @@ class VGG(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return VGG(layers=layers, debug=debug, last_out_channels=512)
+        return Backbone(layers=layers, debug=debug)
 
     @staticmethod
     def ssd_vgg16(debug=False):
@@ -233,35 +217,24 @@ class VGG(nn.Module):
             nn.ReLU(),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
             nn.ReLU(),
-            # nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
-
-            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            # nn.ReLU(),
-            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            # nn.ReLU(),
-            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            # nn.ReLU(),
-            # nn.MaxPool2d(kernel_size=3, stride=1, padding=0),  # change pool5 from 2x2-s2 to 3x3 s1
-
-            # # additional conv layers, from "we convert fc6 and fc7 to convolutional layers"
-            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            # nn.ReLU(),
-            # nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            # nn.ReLU(),
         ]
-        return VGG(layers=layers, debug=debug, last_out_channels=512)
+        return Backbone(layers=layers, debug=debug)
 
-    def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-            if self.debug:
-                print('layer {}: {}'.format(layer, x.shape))
-        return x
+    @staticmethod
+    def tiny_base_net(debug=False):
+        """
+        Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
+        """
+        layers = []
+        num_filters = [3, 16, 32, 64]
+        for i in range(len(num_filters) - 1):
+            layers.append(down_sample_block(num_filters[i], num_filters[i+1]))
+        return Backbone(layers, debug=debug)
 
 
 def get_blk(i, last_out_channels) -> nn.Module:
     """
-    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model
+    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model and modified.
     """
     if i == 0:
         blk = down_sample_block(last_out_channels, 128)
@@ -309,39 +282,51 @@ class SSDModel(nn.Module):
         self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
         self.ratios = [[1, 2, 0.5]] * 5
         self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
-        self.blocks = []
-        self.class_predictors = []
-        self.bbox_predictors = []
+        blocks = []
+        class_predictors: List[nn.Conv2d] = []
+        bbox_predictors = []
 
         self.num_classes = num_classes
         idx_to_in_channels = [128, 128, 128, 128]
 
         # create backbone
         if backbone_arch == 'tiny':
-            backbone = tiny_base_net()
+            backbone = Backbone.tiny_base_net(debug)
         elif backbone_arch == 'vgg16':
-            backbone = VGG.ssd_vgg16()
+            backbone = Backbone.ssd_vgg16(debug)
         else:
             raise ValueError('Unknown backbone architecture: \"{}\"'.format(backbone_arch))
-        self.blocks.append(backbone)
-        self.class_predictors.append(class_predictor(backbone.last_out_channels, self.num_anchors, num_classes))
-        self.bbox_predictors.append(box_predictor(backbone.last_out_channels, self.num_anchors))
+        blocks.append(backbone)
+        if self.debug:
+            print('last out channels:', backbone.last_out_channels)
+        class_predictors.append(class_predictor(backbone.last_out_channels, self.num_anchors, num_classes))
+        bbox_predictors.append(box_predictor(backbone.last_out_channels, self.num_anchors))
 
         for i in range(4):
-            self.blocks.append(get_blk(i, last_out_channels=backbone.last_out_channels))
-            self.class_predictors.append(class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
-            self.bbox_predictors.append(box_predictor(idx_to_in_channels[i], self.num_anchors))
+            blocks.append(get_blk(i, last_out_channels=backbone.last_out_channels))
+            class_predictors.append(class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
+            bbox_predictors.append(box_predictor(idx_to_in_channels[i], self.num_anchors))
+
+        self.blocks = nn.ModuleList(blocks)
+        self.class_predictors = nn.ModuleList(class_predictors)
+        self.bbox_predictors = nn.ModuleList(bbox_predictors)
 
     def forward(self, x):
         anchors, cls_preds, bbox_preds = [], [], []
         for i in range(5):
+            # workaround to make pycharm debugger happy
+            cls_pred = self.class_predictors[i]
+            assert isinstance(cls_pred, nn.Conv2d)
+            bbox_pred = self.bbox_predictors[i]
+            assert isinstance(bbox_pred, nn.Conv2d)
+
             x, anchor, cls_pred, bbox_pred = blk_forward(
                 x,
                 self.blocks[i],
                 self.sizes[i],
                 self.ratios[i],
-                self.class_predictors[i],
-                self.bbox_predictors[i],
+                cls_pred,
+                bbox_pred,
             )
             if self.debug:
                 print('blk output {} shape: {}'.format(i, x.shape))
