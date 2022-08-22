@@ -1,10 +1,11 @@
-from typing import List, Tuple, Iterable, Reversible
+from typing import List, Tuple, Reversible
 
 import torch
 from torch import nn
 import torch.nn.functional as functional
 
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
+from utils.funcs import debug as dbg
 
 
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:
@@ -44,6 +45,7 @@ def flatten_pred(pred: torch.Tensor) -> torch.Tensor:
 
     :param pred: A prediction of shape [batch_size, num_class_predictions, height, width]
     """
+    dbg(pred.shape)
     return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
 
 
@@ -56,6 +58,9 @@ def concat_preds(preds: List[torch.Tensor]) -> torch.Tensor:
 
     :param preds: A list of predictions to concatenate
     """
+    dbg(len(preds))
+    for pred in preds:
+        dbg(pred.shape)
     return torch.cat([flatten_pred(p) for p in preds], dim=1)
 
 
@@ -98,23 +103,49 @@ def search_last_conv(layers: Reversible[nn.Module]) -> nn.Conv2d:
 
 
 class Backbone(nn.Module):
-    def __init__(self, layers: List, debug: bool = False):
+    def __init__(self, layers: List, block_mode: bool, debug: bool = False):
+        """
+
+        :param layers: The layers of the network
+        :param block_mode: If True, each entry in layers creates an output in forward
+        :param debug: If True, prints shape information for each layer output
+        """
         super().__init__()
         self.debug = debug
 
-        # last conv layer
-        last_conv_layer = search_last_conv(layers)
-        self.last_out_channels = last_conv_layer.out_channels
-
         # model
         self.layers = nn.ModuleList(layers)
+        self.block_mode = block_mode
 
     def forward(self, x):
-        for layer in self.layers:
-            x = layer(x)
-            if self.debug:
-                print('{}: {}'.format(layer, x.shape))
-        return x
+        if self.block_mode:
+            output = []
+            for layer in self.layers:
+                x = layer(x)
+                if self.debug:
+                    print('{}: {}'.format(layer, x.shape))
+                output.append(x)
+            return output
+        else:
+            for layer in self.layers:
+                x = layer(x)
+                if self.debug:
+                    print('{}: {}'.format(layer, x.shape))
+            return x
+
+    def get_out_channels(self) -> List[int]:
+        if self.block_mode:
+            out_channels = []
+            for block in self.layers:
+                assert isinstance(block, nn.Sequential)
+                block_list = list(block)
+                last_conv_layer = search_last_conv(block_list)
+                out_channels.append(last_conv_layer.out_channels)
+            return out_channels
+        else:
+            layers = list(self.layers)
+            last_conv_layer = search_last_conv(layers)
+            return [last_conv_layer.out_channels]
 
     @staticmethod
     def vgg11(debug=False):
@@ -145,7 +176,7 @@ class Backbone(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return Backbone(layers=layers, debug=debug)
+        return Backbone(layers=layers, block_mode=False, debug=debug)
 
     @staticmethod
     def vgg16(debug=False):
@@ -186,50 +217,103 @@ class Backbone(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return Backbone(layers=layers, debug=debug)
+        return Backbone(layers=layers, block_mode=False, debug=debug)
 
     @staticmethod
     def ssd_vgg16(debug=False):
         layers = [
-            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            # features
+            nn.Sequential(
+                nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
 
-            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+                nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
 
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=True),
+                nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                # patching ceil_mode to get original paper shape
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=True),
 
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
-            nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+                nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+                nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(),
+            ),
+            # first extra layer, fc6 and fc7
+            nn.Sequential(
+                # first extra layer
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(),
+                nn.Sequential(
+                    nn.MaxPool2d(kernel_size=3, stride=1, padding=1, dilation=1, ceil_mode=False),
+                    # fc6, atrous
+                    nn.Conv2d(512, 1024, kernel_size=(3, 3), stride=(1, 1), padding=(6, 6), dilation=(6, 6)),
+                    nn.ReLU(),
+                    # fc7
+                    nn.Conv2d(1024, 1024, kernel_size=(1, 1), stride=(1, 1)),
+                    nn.ReLU(),
+                )
+            ),
+            # extra feature layer 1
+            nn.Sequential(
+                nn.Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
+                nn.ReLU(inplace=True),
+            ),
+            # extra feature layer 2
+            nn.Sequential(
+                nn.Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=True),
+                nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
+                nn.ReLU(inplace=True),
+            ),
+            # extra feature layer 3
+            nn.Sequential(
+              nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
+              nn.ReLU(inplace=True),
+              nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
+              nn.ReLU(inplace=True),
+            ),
+            # extra feature layer 4
+            nn.Sequential(
+              nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
+              nn.ReLU(inplace=True),
+              nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
+              nn.ReLU(inplace=True),
+            )
         ]
-        return Backbone(layers=layers, debug=debug)
+        return Backbone(layers=layers, block_mode=True, debug=debug)
 
     @staticmethod
     def tiny_base_net(debug=False):
         """
+        TODO: rework with block mode
         Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
         """
         layers = []
         num_filters = [3, 16, 32, 64]
         for i in range(len(num_filters) - 1):
             layers.append(down_sample_block(num_filters[i], num_filters[i+1]))
-        return Backbone(layers, debug=debug)
+        return Backbone(layers, block_mode=False, debug=debug)
 
 
 def get_blk(i, last_out_channels) -> nn.Module:
@@ -246,32 +330,28 @@ def get_blk(i, last_out_channels) -> nn.Module:
 
 
 def blk_forward(
-        x: torch.Tensor, block: nn.Module, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
+        feature_map: torch.Tensor, sizes: List[float], ratios: List[float], cls_predictor: nn.Conv2d,
         bbox_predictor: nn.Conv2d
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Taken from: https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model
 
-    :param x: The tensor to forward propagate with shape [BATCH_SIZE, NUM_INPUT_CHANNELS, IN_HEIGHT, IN_WIDTH]
-    :param block: The block to use for propagation. Should accept x as input
+    :param feature_map: The tensor to forward propagate with shape [BATCH_SIZE, NUM_INPUT_CHANNELS, IN_HEIGHT, IN_WIDTH]
     :param sizes: The sizes of the anchor boxes
     :param ratios: The ratios of the anchor boxes
     :param cls_predictor: The class predictor to use for classification
     :param bbox_predictor: The bounding box predictor to use for prediction
-    :return: A tuple containing (y, anchors, cls_preds, bbox_preds):
-                 - y: The output of the executed block with shape
-                      [BATCH_SIZE, NUM_OUTPUT_CHANNELS, OUT_HEIGHT, OUT_WIDTH]
+    :return: A tuple containing (anchors, cls_preds, bbox_preds):
                  - anchors: The anchor boxes created from the given block
                  - cls_preds: The class predictions for the given block with shape
                               [BATCH_SIZE, NUM_ANCHORS * (NUM_CLASSES + 1), OUT_HEIGHT, OUT_WIDTH]
                  - bbox_preds: The prediction of bounding boxes with shape
                                [BATCH_SIZE, NUM_ANCHORS * 4, OUT_HEIGHT, OUT_WIDTH]
     """
-    y = block(x)
-    anchors = create_anchor_boxes(shape=y.shape[-2:], scales=sizes, ratios=ratios, device=y.device)
-    cls_preds = cls_predictor(y)
-    bbox_preds = bbox_predictor(y)
-    return y, anchors, cls_preds, bbox_preds
+    anchors = create_anchor_boxes(shape=feature_map.shape[-2:], scales=sizes, ratios=ratios, device=feature_map.device)
+    cls_preds = cls_predictor(feature_map)
+    bbox_preds = bbox_predictor(feature_map)
+    return anchors, cls_preds, bbox_preds
 
 
 class SSDModel(nn.Module):
@@ -282,12 +362,11 @@ class SSDModel(nn.Module):
         self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
         self.ratios = [[1, 2, 0.5]] * 5
         self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
-        blocks = []
         class_predictors: List[nn.Conv2d] = []
         bbox_predictors = []
 
         self.num_classes = num_classes
-        idx_to_in_channels = [128, 128, 128, 128]
+        # idx_to_in_channels = [128, 128, 128, 128]
 
         # create backbone
         if backbone_arch == 'tiny':
@@ -296,40 +375,37 @@ class SSDModel(nn.Module):
             backbone = Backbone.ssd_vgg16(debug)
         else:
             raise ValueError('Unknown backbone architecture: \"{}\"'.format(backbone_arch))
-        blocks.append(backbone)
+
+        self.backbone = backbone
         if self.debug:
-            print('last out channels:', backbone.last_out_channels)
-        class_predictors.append(class_predictor(backbone.last_out_channels, self.num_anchors, num_classes))
-        bbox_predictors.append(box_predictor(backbone.last_out_channels, self.num_anchors))
+            print('out channels:', backbone.get_out_channels())
 
-        for i in range(4):
-            blocks.append(get_blk(i, last_out_channels=backbone.last_out_channels))
-            class_predictors.append(class_predictor(idx_to_in_channels[i], self.num_anchors, num_classes))
-            bbox_predictors.append(box_predictor(idx_to_in_channels[i], self.num_anchors))
+        for out_channels in self.backbone.get_out_channels():
+            class_predictors.append(class_predictor(out_channels, self.num_anchors, num_classes))
+            bbox_predictors.append(box_predictor(out_channels, self.num_anchors))
 
-        self.blocks = nn.ModuleList(blocks)
         self.class_predictors = nn.ModuleList(class_predictors)
         self.bbox_predictors = nn.ModuleList(bbox_predictors)
 
     def forward(self, x):
         anchors, cls_preds, bbox_preds = [], [], []
-        for i in range(5):
+        outputs = self.backbone(x)
+        for i, feature_map in enumerate(outputs):
             # workaround to make pycharm debugger happy
-            cls_pred = self.class_predictors[i]
-            assert isinstance(cls_pred, nn.Conv2d)
+            cls_predictor = self.class_predictors[i]
+            assert isinstance(cls_predictor, nn.Conv2d)
             bbox_pred = self.bbox_predictors[i]
             assert isinstance(bbox_pred, nn.Conv2d)
 
-            x, anchor, cls_pred, bbox_pred = blk_forward(
-                x,
-                self.blocks[i],
+            anchor, cls_pred, bbox_pred = blk_forward(
+                feature_map,
                 self.sizes[i],
                 self.ratios[i],
-                cls_pred,
+                cls_predictor,
                 bbox_pred,
             )
             if self.debug:
-                print('blk output {} shape: {}'.format(i, x.shape))
+                print('blk output {} shape: {}'.format(i, feature_map.shape))
             anchors.append(anchor)
             cls_preds.append(cls_pred)
             bbox_preds.append(bbox_pred)

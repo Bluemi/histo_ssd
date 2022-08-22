@@ -7,15 +7,16 @@ from torchvision.models.detection import ssd
 
 
 def main():
-    model = SSDModel(num_classes=1, debug=True, backbone_arch='tiny')
-    print(model)
+    model = SSDModel(num_classes=1, debug=True, backbone_arch='vgg16')
+    # for parameter in model.parameters():
+    # print(parameter.data.shape)
     model.eval()
 
     # base_model: torch.nn.Sequential = model.blocks[0]
     # print(base_model._modules)
 
     with torch.no_grad():
-        image = torch.zeros((1, 3, 256, 256))
+        image = torch.zeros((7, 3, 256, 256))
         anchors, cls_preds, bbox_preds = model(image)
 
     anchors = anchors.squeeze(0)

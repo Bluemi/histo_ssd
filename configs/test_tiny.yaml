@@ -5,9 +5,14 @@ hyperparameters:
   dataset: "banana"
   dataset_split_size: 0.8
   num_workers: 8
-  backbone_arch: "tiny"
+  backbone_arch: "vgg16"
   optimizer: "sgd"
-  learning_rate: 0.2
+  learning_rate:
+    type: log
+    maxval: -1
+    minval: -5
+    base: 10
+    count: 8
   l2_regularization: 1e-5
   image_prediction_score_threshold: 0.7
   image_prediction_max_images: 5
@@ -38,8 +43,8 @@ checkpoint_storage:
   save_experiment_best: 0
 max_restarts: 0
 resources:
-  agent_label: pepper-cluster
-  max_slots: 1
+  agent_label: dt-cluster
+  max_slots: 4
   slots_per_trial: 1
 reproducibility:
   experiment_seed: 1658162417
