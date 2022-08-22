@@ -1,6 +1,7 @@
 from typing import Tuple, Dict, Any, List
 import numpy as np
 import torch
+import torchvision
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
 from torchmetrics.detection import MeanAveragePrecision
@@ -63,19 +64,27 @@ class DefaultTrial(PyTorchTrial):
         """
         dataset_name = self.context.get_hparam('dataset')
         split_size = self.context.get_hparam('dataset_split_size')
+        image_size = self.context.get_hparams().get('image_size', 224)
+
         print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
         if dataset_name == 'lizard':
             dataset = LizardDetectionDataset.from_avocado(
-                image_size=np.array([224, 224]),
-                image_stride=np.array([224, 224]),
+                image_size=np.array([image_size, image_size]),
+                image_stride=np.array([image_size, image_size]),
                 use_cache=True,
                 show_progress=False,
             )
             datasets = dataset.split(split_size)
         elif dataset_name == 'banana':
             dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
-            dataset_train = BananasDataset(data_dir=dataset_location, is_train=True, verbose=False)
-            dataset_val = BananasDataset(data_dir=dataset_location, is_train=False, verbose=False)
+            dataset_train = BananasDataset(
+                data_dir=dataset_location, is_train=True, verbose=False,
+                transforms=[torchvision.transforms.Resize((image_size, image_size))]
+            )
+            dataset_val = BananasDataset(
+                data_dir=dataset_location, is_train=False, verbose=False,
+                transforms=[torchvision.transforms.Resize((image_size, image_size))]
+            )
             datasets = (dataset_train, dataset_val)
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
@@ -204,7 +213,7 @@ class DefaultTrial(PyTorchTrial):
             batch_size=self.context.get_per_slot_batch_size(),
             shuffle=True,
             num_workers=self.context.get_hparam('num_workers'),
-            pin_memory=True
+            pin_memory=True,
         )
 
     def build_validation_data_loader(self) -> DataLoader:

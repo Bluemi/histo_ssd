@@ -5,7 +5,6 @@ from torch import nn
 import torch.nn.functional as functional
 
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
-from utils.funcs import debug as dbg
 
 
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:
@@ -45,7 +44,6 @@ def flatten_pred(pred: torch.Tensor) -> torch.Tensor:
 
     :param pred: A prediction of shape [batch_size, num_class_predictions, height, width]
     """
-    dbg(pred.shape)
     return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
 
 
@@ -58,9 +56,6 @@ def concat_preds(preds: List[torch.Tensor]) -> torch.Tensor:
 
     :param preds: A list of predictions to concatenate
     """
-    dbg(len(preds))
-    for pred in preds:
-        dbg(pred.shape)
     return torch.cat([flatten_pred(p) for p in preds], dim=1)
 
 
@@ -123,7 +118,7 @@ class Backbone(nn.Module):
             for layer in self.layers:
                 x = layer(x)
                 if self.debug:
-                    print('{}: {}'.format(layer, x.shape))
+                    print('Sequential: {}'.format(x.shape))
                 output.append(x)
             return output
         else:
@@ -136,11 +131,17 @@ class Backbone(nn.Module):
     def get_out_channels(self) -> List[int]:
         if self.block_mode:
             out_channels = []
+            last_num_channels = None
             for block in self.layers:
-                assert isinstance(block, nn.Sequential)
-                block_list = list(block)
-                last_conv_layer = search_last_conv(block_list)
-                out_channels.append(last_conv_layer.out_channels)
+                if isinstance(block, nn.Sequential):
+                    block_list = list(block)
+                    last_conv_layer = search_last_conv(block_list)
+                    out_channels.append(last_conv_layer.out_channels)
+                    last_num_channels = last_conv_layer.out_channels
+                else:
+                    if last_num_channels is None:
+                        raise NoConvException('Couldn\'t find out channels')
+                    out_channels.append(last_num_channels)
             return out_channels
         else:
             layers = list(self.layers)
@@ -313,7 +314,15 @@ class Backbone(nn.Module):
         num_filters = [3, 16, 32, 64]
         for i in range(len(num_filters) - 1):
             layers.append(down_sample_block(num_filters[i], num_filters[i+1]))
-        return Backbone(layers, block_mode=False, debug=debug)
+
+        blocks = [
+            nn.Sequential(*layers),
+            down_sample_block(64, 128),
+            down_sample_block(128, 128),
+            down_sample_block(128, 128),
+            nn.AdaptiveMaxPool2d((1, 1)),
+        ]
+        return Backbone(blocks, block_mode=True, debug=debug)
 
 
 def get_blk(i, last_out_channels) -> nn.Module:
@@ -358,9 +367,13 @@ class SSDModel(nn.Module):
     def __init__(self, num_classes, backbone_arch='tiny', debug=False):
         super(SSDModel, self).__init__()
         self.debug = debug
-        # TODO: are sizes correct for different models?
-        self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]
-        self.ratios = [[1, 2, 0.5]] * 5
+        # TODO: sizes correct for different models?
+        if backbone_arch == 'tiny':
+            self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]  # sizes from d2l
+        elif backbone_arch == 'vgg16':
+            self.sizes = [[0.07], [0.15], [0.33], [0.51], [0.69], [0.87], [1.05]]  # sizes from torchvision
+
+        self.ratios = [[1, 2, 0.5]] * 6
         self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
         class_predictors: List[nn.Conv2d] = []
         bbox_predictors = []
@@ -377,8 +390,6 @@ class SSDModel(nn.Module):
             raise ValueError('Unknown backbone architecture: \"{}\"'.format(backbone_arch))
 
         self.backbone = backbone
-        if self.debug:
-            print('out channels:', backbone.get_out_channels())
 
         for out_channels in self.backbone.get_out_channels():
             class_predictors.append(class_predictor(out_channels, self.num_anchors, num_classes))
@@ -404,8 +415,6 @@ class SSDModel(nn.Module):
                 cls_predictor,
                 bbox_pred,
             )
-            if self.debug:
-                print('blk output {} shape: {}'.format(i, feature_map.shape))
             anchors.append(anchor)
             cls_preds.append(cls_pred)
             bbox_preds.append(bbox_pred)

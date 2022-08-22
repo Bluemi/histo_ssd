@@ -2,12 +2,26 @@ import torch
 from matplotlib import pyplot as plt
 
 from models import SSDModel, Backbone
-from utils.funcs import debug, draw_boxes
+from utils.funcs import draw_boxes
 from torchvision.models.detection import ssd
 
 
+MODEL = 'tiny'
+# noinspection PyRedeclaration
+# MODEL = 'vgg16'
+
+if MODEL == 'tiny':
+    LEVEL_SIZES = [32, 16, 8, 4, 1]
+    NUM_BOXES_PER_PIXEL = 4
+    IMAGE_SIZE = 256
+elif MODEL == 'vgg16':
+    LEVEL_SIZES = [38, 19, 10, 5, 3, 1]
+    NUM_BOXES_PER_PIXEL = 3
+    IMAGE_SIZE = 300
+
+
 def main():
-    model = SSDModel(num_classes=1, debug=True, backbone_arch='vgg16')
+    model = SSDModel(num_classes=1, debug=True, backbone_arch=MODEL)
     # for parameter in model.parameters():
     # print(parameter.data.shape)
     model.eval()
@@ -16,35 +30,36 @@ def main():
     # print(base_model._modules)
 
     with torch.no_grad():
-        image = torch.zeros((7, 3, 256, 256))
+        image = torch.zeros((7, 3, IMAGE_SIZE, IMAGE_SIZE))
         anchors, cls_preds, bbox_preds = model(image)
 
     anchors = anchors.squeeze(0)
 
-    debug(anchors.shape)
-    debug(cls_preds.shape)
-    debug(bbox_preds.reshape((1, -1, 4)).shape)
+    # debug(anchors.shape)
+    # debug(cls_preds.shape)
+    # debug(bbox_preds.reshape((1, -1, 4)).shape)
 
     black_image = torch.zeros((1024, 1024, 3), dtype=torch.int)
 
-    add_boxes(black_image, anchors, x=15, y=15, level=0, num_boxes=2, color=(255, 0, 0))
-    add_boxes(black_image, anchors, x=16, y=16, level=0, num_boxes=2, color=(0, 255, 0))
+    add_boxes(black_image, anchors, x=15, y=15, level=1, num_boxes=1, color=(255, 0, 0))
+    add_boxes(black_image, anchors, x=15, y=16, level=1, num_boxes=1, color=(0, 255, 0))
 
     plt.imshow(black_image)
     plt.show()
 
 
 def test_vgg():
-    model = Backbone.ssd_vgg16(debug=True)
+    model = Backbone.ssd_vgg16(debug=False)
     # model = tiny_base_net()
     with torch.no_grad():
         input_size = 300
         image = torch.zeros((1, 3, input_size, input_size))
         embedding = model(image)
 
-    print(model)
+    # print(model)
 
-    print('\nembedding shape:', embedding.shape)
+    for feature_map in embedding:
+        print('\nfeature map shape:', feature_map.shape)
 
 
 def test_torchvision():
@@ -53,20 +68,18 @@ def test_torchvision():
 
 
 def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
-    level_sizes = [32, 16, 8, 4, 1]
     level_add = 0
     for i in range(level):
-        level_add += level_sizes[i] * level_sizes[i]
+        level_add += LEVEL_SIZES[i] * LEVEL_SIZES[i]
 
     if isinstance(x, float):
-        x = int(x * level_sizes[level])
+        x = int(x * LEVEL_SIZES[level])
     if isinstance(y, float):
-        y = int(y * level_sizes[level])
+        y = int(y * LEVEL_SIZES[level])
 
-    index = level_add + y * level_sizes[level] + x
+    index = level_add + y * LEVEL_SIZES[level] + x
 
-    draw_anchors = anchors[index*4:index*4+num_boxes]
-    debug(draw_anchors.shape)
+    draw_anchors = anchors[index * NUM_BOXES_PER_PIXEL:index * NUM_BOXES_PER_PIXEL + num_boxes]
 
     draw_boxes(image, draw_anchors, box_format='ltrb', color=color)
 
