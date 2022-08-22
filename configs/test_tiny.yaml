@@ -5,18 +5,19 @@ hyperparameters:
   dataset: "banana"
   dataset_split_size: 0.8
   num_workers: 8
-  backbone_arch: "vgg16"
+  backbone_arch: "vgg16"  # TODO
   optimizer: "sgd"
-  learning_rate: 0.001
+  learning_rate: 0.001  # TODO
     # type: log
     # maxval: -1
     # minval: -5
     # base: 10
     # count: 8
   l2_regularization: 1e-5
-  image_prediction_score_threshold: 0.7
+  momentum: 0.9  # TODO
+  image_prediction_score_threshold: 0.4
   image_prediction_max_images: 5
-  image_size: 300
+  image_size: 300  # TODO
 min_validation_period:
   batches: 200
 searcher:

@@ -2,6 +2,7 @@ from typing import Tuple, Dict, Any, List
 import numpy as np
 import torch
 import torchvision
+import torch.nn.functional as functional
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
 from torchmetrics.detection import MeanAveragePrecision
@@ -38,7 +39,7 @@ class DefaultTrial(PyTorchTrial):
             optimizer = torch.optim.SGD(
                 self.model.parameters(),
                 lr=self.context.get_hparam('learning_rate'),
-                momentum=0.9,  # TODO: try momentum
+                momentum=self.context.get_hparams().get('momentum', 0),
                 weight_decay=self.context.get_hparam('l2_regularization')
             )
         else:
@@ -119,6 +120,12 @@ class DefaultTrial(PyTorchTrial):
         ).mean(dim=1)
         return cls + bbox
 
+    @staticmethod
+    def _get_max_class_probs(cls_preds: torch.Tensor):
+        cls_probs = functional.softmax(cls_preds, dim=2)
+        cls_probs = cls_probs.reshape((-1, cls_probs.shape[-1]))
+        return torch.max(cls_probs, dim=0)[0]
+
     def train_batch(
         self, batch: TorchData, epoch_idx: int, batch_idx: int
     ) -> Dict[str, Any]:
@@ -132,9 +139,15 @@ class DefaultTrial(PyTorchTrial):
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
-        return {
-            'loss': loss,
+        result = {
+            'loss': loss
         }
+
+        class_max_probs = DefaultTrial._get_max_class_probs(cls_preds)
+        for i, cls_max_prob in enumerate(class_max_probs):
+            result['cls{}_max_prob'.format(i)] = cls_max_prob
+
+        return result
 
     def write_prediction_images(
             self, batch_output: List[torch.Tensor], batch: Dict[str, torch.Tensor], batch_idx: int, image_counter: int
@@ -192,18 +205,34 @@ class DefaultTrial(PyTorchTrial):
         mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
         image_counter = 0
+        losses = []
+        all_max_class_probs = []
         for batch in data_loader:
-            batch_output = predict(self.model, batch['image'], device=self.context.device)
+            anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
+
+            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
+            loss = self._calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks).mean()
+            losses.append(loss)
+
+            batch_output = predict(anchors, cls_preds, bbox_preds)
 
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
+
+            max_class_probs = DefaultTrial._get_max_class_probs(cls_preds)
+            all_max_class_probs.append(max_class_probs)
 
             # write prediction images
             if image_counter < image_prediction_max_images:
                 image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
 
+        # TODO: result['map_per_class'] should be returned separate for each class
         result = mean_average_precision.compute()
 
-        # TODO: result['map_per_class'] should be returned separate for each class
+        result['loss'] = torch.mean(torch.tensor(losses)).item()
+
+        class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)
+        for i, cls_max_prob in enumerate(class_max_probs):
+            result['cls{}_max_prob'.format(i)] = cls_max_prob
 
         return result
 
