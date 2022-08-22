@@ -5,9 +5,9 @@ hyperparameters:
   dataset: "banana"
   dataset_split_size: 0.8
   num_workers: 8
-  backbone_arch: "tiny"
+  backbone_arch: "vgg16"
   optimizer: "sgd"
-  learning_rate: 0.2
+  learning_rate: 0.001
     # type: log
     # maxval: -1
     # minval: -5
@@ -16,7 +16,7 @@ hyperparameters:
   l2_regularization: 1e-5
   image_prediction_score_threshold: 0.7
   image_prediction_max_images: 5
-  # image_size: 300
+  image_size: 300
 min_validation_period:
   batches: 200
 searcher:
@@ -35,16 +35,13 @@ bind_mounts:
     container_path: "/data/ldap/histopathologic"
     read_only: true
   # logging
-  - host_path: "/data/determined/shared_fs/logs"
-    container_path: "/logs"
-    read_only: false
 checkpoint_storage:
   save_trial_best: 0
   save_trial_latest: 0
   save_experiment_best: 0
 max_restarts: 0
 resources:
-  agent_label: dt-cluster
+  agent_label: pepper-cluster
   max_slots: 4
   slots_per_trial: 1
 reproducibility:

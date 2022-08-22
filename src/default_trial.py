@@ -38,7 +38,7 @@ class DefaultTrial(PyTorchTrial):
             optimizer = torch.optim.SGD(
                 self.model.parameters(),
                 lr=self.context.get_hparam('learning_rate'),
-                # momentum=0.9, TODO: try momentum
+                momentum=0.9,  # TODO: try momentum
                 weight_decay=self.context.get_hparam('l2_regularization')
             )
         else:

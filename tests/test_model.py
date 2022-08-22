@@ -8,7 +8,7 @@ from torchvision.models.detection import ssd
 
 MODEL = 'tiny'
 # noinspection PyRedeclaration
-# MODEL = 'vgg16'
+MODEL = 'vgg16'
 
 if MODEL == 'tiny':
     LEVEL_SIZES = [32, 16, 8, 4, 1]
@@ -31,6 +31,11 @@ def main():
 
     with torch.no_grad():
         image = torch.zeros((7, 3, IMAGE_SIZE, IMAGE_SIZE))
+        x = image
+        for block in model.backbone.layers:
+            for layer in block:
+                x = layer(x)
+                print('{}: {}'.format(layer, x.shape))
         anchors, cls_preds, bbox_preds = model(image)
 
     anchors = anchors.squeeze(0)
