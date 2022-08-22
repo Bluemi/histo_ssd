@@ -230,7 +230,7 @@ class DefaultTrial(PyTorchTrial):
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
 
-        class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)
+        class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)[0]
         for i, cls_max_prob in enumerate(class_max_probs):
             result['cls{}_max_prob'.format(i)] = cls_max_prob
 
