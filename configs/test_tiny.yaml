@@ -7,14 +7,20 @@ hyperparameters:
   num_workers: 8
   backbone_arch: "vgg16"  # TODO
   optimizer: "sgd"
-  learning_rate: 0.001  # TODO
-    # type: log
-    # maxval: -1
-    # minval: -5
-    # base: 10
+  learning_rate: # 0.001  # TODO
+    type: log
+    maxval: 0
+    minval: -5
+    base: 10
     # count: 8
-  l2_regularization: 1e-5
-  momentum: 0.9  # TODO
+  l2_regularization:
+    type: double
+    minval: 1e-6
+    maxval: 1e-4
+  momentum: # 0.9  # TODO
+    type: double
+    minval: 0.7
+    maxval: 0.95
   image_prediction_score_threshold: 0.4
   image_prediction_max_images: 5
   image_size: 300  # TODO
@@ -22,11 +28,13 @@ hyperparameters:
 min_validation_period:
   batches: 200
 searcher:
-  name: grid
+  name: adaptive_asha
   metric: map
   max_length:
     batches: 3000
-  smaller_is_better: true
+  smaller_is_better: false
+  max_trials: 500
+  max_concurrent_trials: 4
 entrypoint: default_trial:DefaultTrial
 environment:
   image:
@@ -44,7 +52,7 @@ checkpoint_storage:
 max_restarts: 0
 resources:
   agent_label: pepper-cluster
-  max_slots: 4
+  max_slots: 8
   slots_per_trial: 1
 reproducibility:
   experiment_seed: 1658162417
