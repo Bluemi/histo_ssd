@@ -78,7 +78,7 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negati
 
         # num_negative_samples_per_batch = num_positive_samples_per_batch * negative_ratio
         num_negative_samples = num_positive_samples * negative_ratio
-        num_samples = num_negative_samples + num_positive_samples
+        # num_samples = num_negative_samples + num_positive_samples
         num_negative_samples = num_negative_samples.to(torch.int)
 
         # sort higher class losses. By multiplying with negative mask, all positive samples are not considered for
@@ -88,7 +88,8 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negati
             indices = loss_argsort[i, :num_negative_samples[i]]  # choose loss indices with the highest losses
             positive_mask[i][indices] = 1.0  # enable some negative samples
         cls = cls * positive_mask  # disable most of the negative samples
-        cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
+        cls = torch.mean(cls, dim=1)  # we use mean again, instead of sum / N
+        # cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
     else:
         cls = torch.mean(cls, dim=1)
     bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)

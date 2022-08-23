@@ -55,9 +55,6 @@ class DefaultTrial(PyTorchTrial):
         )
         self.scheduler = self.context.wrap_lr_scheduler(scheduler, LRScheduler.StepMode.STEP_EVERY_BATCH)
 
-        self.cls_loss = torch.nn.CrossEntropyLoss(reduction='none')
-        self.bbox_loss = torch.nn.L1Loss(reduction='none')
-
         self.tblogger = TorchWriter()  # Tensorboard log
 
     def _load_dataset(self) -> Tuple[Dataset, Dataset]:

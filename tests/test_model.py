@@ -23,12 +23,11 @@ BATCH_SIZE = 7
 
 def main():
     model = SSDModel(num_classes=1, debug=True, backbone_arch=MODEL)
-    # for parameter in model.parameters():
-    # print(parameter.data.shape)
-    model.eval()
 
-    # base_model: torch.nn.Sequential = model.blocks[0]
-    # print(base_model._modules)
+    print(model)
+    return
+
+    model.eval()
 
     with torch.no_grad():
         image = torch.zeros((BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE))
@@ -70,7 +69,7 @@ def test_vgg():
 
 
 def test_torchvision():
-    model = ssd.ssd300_vgg16(pretrained_backbone=False)
+    model = ssd.ssd300_vgg16(pretrained_backbone=False, num_classes=1)
     print(model)
 
 
@@ -94,4 +93,4 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 if __name__ == '__main__':
     main()
     # test_vgg()
-    # test_torchvision()
+    test_torchvision()
