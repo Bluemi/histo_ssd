@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import torch
 from torch import nn
@@ -44,7 +44,7 @@ def update_mean_average_precision(
     mean_average_precision.update(preds, target)
 
 
-def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks):
+def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None):
     """
     Calculates a loss value from class predictions and bounding box regression.
 
@@ -56,13 +56,35 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks):
     :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
     :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]. Each negative box has mask of (0, 0, 0, 0)
                        while each positive box has mask (1, 1, 1, 1).
+    :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
+                           are used. If not set or set to None, all negative samples will be used.
     :return:
     """
     cls_loss = nn.CrossEntropyLoss(reduction='none')
     bbox_loss = nn.L1Loss(reduction='none')
 
-    batch_size, num_classes = cls_preds.shape[0], cls_preds.shape[2]
-    cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1).mean(dim=1)
+    batch_size, num_anchors, num_classes = cls_preds.shape
+    cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1)
+    if negative_ratio is not None:
+        positive_mask = bbox_masks.reshape((batch_size, -1, 4))[:, :, 0]
+        assert positive_mask.shape == torch.Size([batch_size, num_anchors])
+
+        num_positive_samples = torch.sum(positive_mask, dim=1)
+        assert num_positive_samples.shape == torch.Size([batch_size])
+
+        negative_mask = 1.0 - positive_mask
+
+        # num_negative_samples_per_batch = num_positive_samples_per_batch * negative_ratio
+        num_negative_samples = (num_positive_samples * negative_ratio).to(torch.int32)
+        # sort higher class losses. By multiplying with negative mask, all positive samples are not considered for
+        # negative sample choice
+        loss_argsort = torch.argsort(cls*negative_mask, dim=1, descending=True)
+        for i in range(batch_size):
+            indices = loss_argsort[i, :num_negative_samples[i]]  # choose loss indices with the highest losses
+            positive_mask[i][indices] = 1.0  # enable some negative samples
+        cls = cls * positive_mask  # disable most of the negative samples
+
+    cls = cls.mean(dim=1)
     bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)
     return cls + bbox
 
@@ -74,5 +96,3 @@ def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
 
 def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
     return float((torch.abs((bbox_labels - bbox_preds) * bbox_masks)).sum())
-
-

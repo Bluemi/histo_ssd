@@ -88,7 +88,7 @@ else:
             # Label the classes and offsets of these anchor boxes
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y)
             # Calculate the loss function using the predicted and labeled values of the classes and offsets
-            l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks)
+            l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0)
             l.mean().backward()
             trainer.step()
             metric[0] += cls_eval(cls_preds, cls_labels)

@@ -15,7 +15,7 @@ from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
-from utils.metrics import update_mean_average_precision
+from utils.metrics import update_mean_average_precision, calc_loss
 
 
 class DefaultTrial(PyTorchTrial):
@@ -26,6 +26,9 @@ class DefaultTrial(PyTorchTrial):
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
         self.num_classes = self._get_num_classes()
+        self.negative_ratio = self.context.get_hparams().get('negative_ratio')
+        if self.negative_ratio is None:
+            print('WARN: hard negative mining is disabled')
 
         # Creates a feature vector
         backbone_arch = self.context.get_hparam('backbone_arch')
@@ -107,19 +110,6 @@ class DefaultTrial(PyTorchTrial):
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
-    def _calc_loss(
-            self, class_preds: torch.Tensor, class_labels: torch.Tensor, bounding_box_preds: torch.Tensor,
-            bounding_box_labels: torch.Tensor, bounding_box_masks: torch.Tensor
-    ) -> torch.Tensor:
-        batch_size, num_classes = class_preds.shape[0], class_preds.shape[2]
-        cls = self.cls_loss(
-            class_preds.reshape(-1, num_classes), class_labels.reshape(-1)
-        ).reshape(batch_size, -1).mean(dim=1)
-        bbox = self.bbox_loss(
-            bounding_box_preds * bounding_box_masks, bounding_box_labels * bounding_box_masks
-        ).mean(dim=1)
-        return cls + bbox
-
     @staticmethod
     def _get_max_class_probs(cls_preds: torch.Tensor):
         cls_probs = functional.softmax(cls_preds, dim=2)
@@ -135,7 +125,9 @@ class DefaultTrial(PyTorchTrial):
 
         anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
-        loss = self._calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks).mean()
+        loss = calc_loss(
+            cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
+        ).mean()
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
@@ -211,7 +203,9 @@ class DefaultTrial(PyTorchTrial):
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
 
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
-            loss = self._calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks).mean()
+            loss = calc_loss(
+                cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
+            ).mean()
             losses.append(loss)
 
             batch_output = predict(anchors, cls_preds, bbox_preds)
