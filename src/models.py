@@ -101,55 +101,41 @@ def search_last_conv(layers: Reversible[nn.Module]) -> nn.Conv2d:
 
 
 class Backbone(nn.Module):
-    def __init__(self, layers: List, block_mode: bool, debug: bool = False):
+    def __init__(self, blocks: List, debug: bool = False):
         """
 
-        :param layers: The layers of the network
-        :param block_mode: If True, each entry in layers creates an output in forward
+        :param blocks: The layers of the network
         :param debug: If True, prints shape information for each layer output
         """
         super().__init__()
         self.debug = debug
 
         # model
-        self.layers = nn.ModuleList(layers)
-        self.block_mode = block_mode
+        self.blocks = nn.ModuleList(blocks)
 
     def forward(self, x):
-        if self.block_mode:
-            output = []
-            for layer in self.layers:
-                x = layer(x)
-                if self.debug:
-                    print('Sequential: {}'.format(x.shape))
-                output.append(x)
-            return output
-        else:
-            for layer in self.layers:
-                x = layer(x)
-                if self.debug:
-                    print('{}: {}'.format(layer, x.shape))
-            return x
+        output = []
+        for block in self.blocks:
+            x = block(x)
+            if self.debug:
+                print('Sequential: {}'.format(x.shape))
+            output.append(x)
+        return output
 
     def get_out_channels(self) -> List[int]:
-        if self.block_mode:
-            out_channels = []
-            last_num_channels = None
-            for block in self.layers:
-                if isinstance(block, nn.Sequential):
-                    block_list = list(block)
-                    last_conv_layer = search_last_conv(block_list)
-                    out_channels.append(last_conv_layer.out_channels)
-                    last_num_channels = last_conv_layer.out_channels
-                else:
-                    if last_num_channels is None:
-                        raise NoConvException('Couldn\'t find out channels')
-                    out_channels.append(last_num_channels)
-            return out_channels
-        else:
-            layers = list(self.layers)
-            last_conv_layer = search_last_conv(layers)
-            return [last_conv_layer.out_channels]
+        out_channels = []
+        last_num_channels = None
+        for block in self.blocks:
+            if isinstance(block, nn.Sequential):
+                block_list = list(block)
+                last_conv_layer = search_last_conv(block_list)
+                out_channels.append(last_conv_layer.out_channels)
+                last_num_channels = last_conv_layer.out_channels
+            else:
+                if last_num_channels is None:
+                    raise NoConvException('Could not find out channels')
+                out_channels.append(last_num_channels)
+        return out_channels
 
     @staticmethod
     def vgg11(debug=False):
@@ -180,7 +166,7 @@ class Backbone(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return Backbone(layers=layers, block_mode=False, debug=debug)
+        return Backbone(blocks=[nn.Sequential(*layers)], debug=debug)
 
     @staticmethod
     def vgg16(debug=False):
@@ -221,11 +207,11 @@ class Backbone(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
-        return Backbone(layers=layers, block_mode=False, debug=debug)
+        return Backbone(blocks=[nn.Sequential(*layers)], debug=debug)
 
     @staticmethod
     def ssd_vgg16(debug=False):
-        layers = [
+        blocks = [
             # features
             nn.Sequential(
                 nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
@@ -305,12 +291,11 @@ class Backbone(nn.Module):
               nn.ReLU(inplace=True),
             )
         ]
-        return Backbone(layers=layers, block_mode=True, debug=debug)
+        return Backbone(blocks=blocks, debug=debug)
 
     @staticmethod
     def tiny_base_net(debug=False):
         """
-        TODO: rework with block mode
         Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
         """
         layers = []
@@ -325,20 +310,7 @@ class Backbone(nn.Module):
             down_sample_block(128, 128),
             nn.AdaptiveMaxPool2d((1, 1)),
         ]
-        return Backbone(blocks, block_mode=True, debug=debug)
-
-
-def get_blk(i, last_out_channels) -> nn.Module:
-    """
-    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model and modified.
-    """
-    if i == 0:
-        blk = down_sample_block(last_out_channels, 128)
-    elif i == 3:
-        blk = nn.AdaptiveMaxPool2d((1, 1))
-    else:
-        blk = down_sample_block(128, 128)
-    return blk
+        return Backbone(blocks, debug=debug)
 
 
 def blk_forward(

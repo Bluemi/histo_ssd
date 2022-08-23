@@ -65,7 +65,7 @@ net = SSDModel(num_classes=NUM_CLASSES, backbone_arch='tiny')
 trainer = torch.optim.SGD(net.parameters(), lr=0.002, weight_decay=5e-4)
 
 
-num_epochs = 20
+num_epochs = 10
 net = net.to(device)
 
 if MODEL_LOAD_PATH and os.path.isfile(MODEL_LOAD_PATH):

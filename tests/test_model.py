@@ -33,7 +33,7 @@ def main():
     with torch.no_grad():
         image = torch.zeros((BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE))
         x = image
-        for block in model.backbone.layers:
+        for block in model.backbone.blocks:
             for layer in block:
                 x = layer(x)
                 print('{}: {}'.format(layer, x.shape))
