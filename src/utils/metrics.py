@@ -5,6 +5,9 @@ from torch import nn
 from torchmetrics.detection import MeanAveragePrecision
 
 
+EPSILON = 1e-7
+
+
 def update_mean_average_precision(
         mean_average_precision: MeanAveragePrecision, ground_truth_boxes: torch.Tensor, predictions: List[torch.Tensor]
 ):
@@ -68,14 +71,16 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negati
     if negative_ratio is not None:
         positive_mask = bbox_masks.reshape((batch_size, -1, 4))[:, :, 0]
         assert positive_mask.shape == torch.Size([batch_size, num_anchors])
+        negative_mask = 1.0 - positive_mask
 
         num_positive_samples = torch.sum(positive_mask, dim=1)
         assert num_positive_samples.shape == torch.Size([batch_size])
 
-        negative_mask = 1.0 - positive_mask
-
         # num_negative_samples_per_batch = num_positive_samples_per_batch * negative_ratio
-        num_negative_samples = (num_positive_samples * negative_ratio).to(torch.int32)
+        num_negative_samples = num_positive_samples * negative_ratio
+        num_samples = num_negative_samples + num_positive_samples
+        num_negative_samples = num_negative_samples.to(torch.int)
+
         # sort higher class losses. By multiplying with negative mask, all positive samples are not considered for
         # negative sample choice
         loss_argsort = torch.argsort(cls*negative_mask, dim=1, descending=True)
@@ -83,8 +88,9 @@ def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negati
             indices = loss_argsort[i, :num_negative_samples[i]]  # choose loss indices with the highest losses
             positive_mask[i][indices] = 1.0  # enable some negative samples
         cls = cls * positive_mask  # disable most of the negative samples
-
-    cls = cls.mean(dim=1)
+        cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
+    else:
+        cls = torch.mean(cls, dim=1)
     bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)
     return cls + bbox
 

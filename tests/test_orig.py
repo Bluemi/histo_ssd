@@ -20,7 +20,7 @@ DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
 # DATASET = 'lizard'
 
-MODEL_LOAD_PATH = '../models/{}_model1.pth'.format(DATASET)
+MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
 
 if DATASET == 'banana':
     NUM_CLASSES = 1
