@@ -7,6 +7,9 @@ import torch.nn.functional as functional
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
 
 
+RELU_INPLACE = False
+
+
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:
     """
     Creates a class prediction layer, that can be executed on a feature map of shape [batch_size, num_inputs, y, x] and
@@ -76,7 +79,7 @@ def down_sample_block(in_channels, out_channels) -> nn.Sequential:
     for _ in range(2):
         blk.append(nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1))
         blk.append(nn.BatchNorm2d(out_channels))
-        blk.append(nn.ReLU())
+        blk.append(nn.ReLU(inplace=RELU_INPLACE))
         in_channels = out_channels
     blk.append(nn.MaxPool2d(2))
     return nn.Sequential(*blk)
@@ -141,29 +144,29 @@ class Backbone(nn.Module):
     def vgg11(debug=False):
         layers = [
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
         return Backbone(blocks=[nn.Sequential(*layers)], debug=debug)
@@ -172,39 +175,39 @@ class Backbone(nn.Module):
     def vgg16(debug=False):
         layers = [
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
 
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-            nn.ReLU(),
+            nn.ReLU(inplace=RELU_INPLACE),
             nn.MaxPool2d(kernel_size=2, stride=2, padding=0),
         ]
         return Backbone(blocks=[nn.Sequential(*layers)], debug=debug)
@@ -215,80 +218,80 @@ class Backbone(nn.Module):
             # features
             nn.Sequential(
                 nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
 
                 nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
 
                 nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 # patching ceil_mode to get original paper shape
                 nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=True),
 
                 nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
             ),
             # first extra layer, fc6 and fc7
             nn.Sequential(
                 # first extra layer
                 nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
                 nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
-                nn.ReLU(),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Sequential(
                     nn.MaxPool2d(kernel_size=3, stride=1, padding=1, dilation=1, ceil_mode=False),
                     # fc6, atrous
                     nn.Conv2d(512, 1024, kernel_size=(3, 3), stride=(1, 1), padding=(6, 6), dilation=(6, 6)),
-                    nn.ReLU(),
+                    nn.ReLU(inplace=RELU_INPLACE),
                     # fc7
                     nn.Conv2d(1024, 1024, kernel_size=(1, 1), stride=(1, 1)),
-                    nn.ReLU(),
+                    nn.ReLU(inplace=RELU_INPLACE),
                 )
             ),
             # extra feature layer 1
             nn.Sequential(
                 nn.Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1)),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=RELU_INPLACE),
             ),
             # extra feature layer 2
             nn.Sequential(
                 nn.Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1)),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=RELU_INPLACE),
                 nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
-                nn.ReLU(inplace=True),
+                nn.ReLU(inplace=RELU_INPLACE),
             ),
             # extra feature layer 3
             nn.Sequential(
               nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
-              nn.ReLU(inplace=True),
+              nn.ReLU(inplace=RELU_INPLACE),
               nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
-              nn.ReLU(inplace=True),
+              nn.ReLU(inplace=RELU_INPLACE),
             ),
             # extra feature layer 4
             nn.Sequential(
               nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
-              nn.ReLU(inplace=True),
+              nn.ReLU(inplace=RELU_INPLACE),
               nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
-              nn.ReLU(inplace=True),
+              nn.ReLU(inplace=RELU_INPLACE),
             )
         ]
         return Backbone(blocks=blocks, debug=debug)
