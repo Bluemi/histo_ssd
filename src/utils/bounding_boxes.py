@@ -9,7 +9,6 @@ yxhw-Format:
     in respect to the image size.
 """
 import torch
-import math
 from typing import List, Union, Tuple
 
 
@@ -111,13 +110,14 @@ def create_anchor_boxes(
         device: Union[torch.device, str, None] = None
 ) -> torch.Tensor:
     """
-    Creates anchor boxes centered on each point in shape. Anchor Boxes are in tlbr-format.
+    Creates anchor boxes centered on each point in shape. Anchor Boxes are in ltrb-format.
 
     Taken from: https://d2l.ai/chapter_computer-vision/anchor.html#generating-multiple-anchor-boxes
 
     :param shape: One anchor box is created for every pixel in the given shape.
     :param scales: The scales for the anchor boxes
     :param ratios: The ratios for the anchor boxes
+    :return: A list of anchor boxes with shape [1, NUM_ANCHORS, 4]
     """
     in_height, in_width = shape[0], shape[1]
     num_sizes, num_ratios = len(scales), len(ratios)
@@ -127,8 +127,8 @@ def create_anchor_boxes(
     # Offsets are required to move the anchor to the center of a pixel. Since
     # a pixel has height=1 and width=1, we choose to offset our centers by 0.5
     offset_h, offset_w = 0.5, 0.5
-    steps_h = 1.0 / in_height  # Scaled steps in y axis
-    steps_w = 1.0 / in_width  # Scaled steps in x axis
+    steps_h = 1.0 / in_height  # Scaled steps in y-axis
+    steps_w = 1.0 / in_width  # Scaled steps in x-axis
 
     # Generate all center points for the anchor boxes
     center_h = (torch.arange(in_height, device=device) + offset_h) * steps_h
@@ -138,8 +138,10 @@ def create_anchor_boxes(
 
     # Generate `boxes_per_pixel` number of heights and widths that are later
     # used to create anchor box corner coordinates (xmin, xmax, ymin, ymax)
-    w = torch.cat((size_tensor * torch.sqrt(ratio_tensor[0]), scales[0] * torch.sqrt(ratio_tensor[1:]))) * in_height / in_width  # Handle rectangular inputs
-    h = torch.cat((size_tensor / torch.sqrt(ratio_tensor[0]), scales[0] / torch.sqrt(ratio_tensor[1:])))
+    w: torch.Tensor = torch.cat(
+        (size_tensor * torch.sqrt(ratio_tensor[0]), scales[0] * torch.sqrt(ratio_tensor[1:]))
+    ) * in_height / in_width  # Handle rectangular inputs
+    h: torch.Tensor = torch.cat((size_tensor / torch.sqrt(ratio_tensor[0]), scales[0] / torch.sqrt(ratio_tensor[1:])))
     # Divide by 2 to get half height and half width
     anchor_manipulations = torch.stack((-w, -h, w, h)).T.repeat(in_height * in_width, 1) / 2
 
@@ -255,13 +257,13 @@ def offset_inverse(anchors: torch.Tensor, offset_preds: torch.Tensor) -> torch.T
 def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Label anchor boxes using ground-truth bounding boxes. Returns a tuple with three elements:
-    1. The calculated offsets for assigned anchor boxes with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
-    2. A mask of shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4), setting all negative examples to 0.0 and all positives
+    1. The calculated offsets for assigned anchor boxes with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
+    2. A mask of shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4], setting all negative examples to 0.0 and all positives
        examples to 1.0
-    3. The class labels of the anchor boxes with shape (BATCH_SIZE, NUM_ANCHOR_BOXES)
+    3. The class labels of the anchor boxes with shape [BATCH_SIZE, NUM_ANCHOR_BOXES]
 
-    :param anchors: List of anchor boxes with shape (NUM_ANCHOR_BOXES, 4) in tlbr-format.
-    :param labels: Batch of ground truth boxes with shape (BATCH_SIZE, NUM_GT_BOXES, 5).
+    :param anchors: List of anchor boxes with shape [NUM_ANCHOR_BOXES, 4] in tlbr-format.
+    :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
                    The 5 comes from (classlabel, t, l, b, r).
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets

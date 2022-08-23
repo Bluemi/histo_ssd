@@ -37,20 +37,23 @@ def box_predictor(num_inputs: int, num_anchors: int) -> nn.Conv2d:
 
 def flatten_pred(pred: torch.Tensor) -> torch.Tensor:
     """
-    Transforms the input prediction of shape [batch_size, num_class_predictions, height, width] to
-    [batch_size, height, width, num_class_predictions] and flattens it to [batch_size, -1].
+    Transforms the input prediction of shape [BATCH_SIZE, NUM_PREDICTIONS, HEIGHT, WIDTH] to
+    [BATCH_SIZE, HEIGHT, WIDTH, NUM_PREDICTIONS] and flattens it to [BATCH_SIZE, HEIGHT*WIDTH*NUM_PREDICTIONS].
+    num_class_predictions = num_anchors_per_pixel * (num_classes + 1)
+    num_bbox_predictions = num_anchors_per_pixel * 4
 
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#concatenating-predictions-for-multiple-scales
 
-    :param pred: A prediction of shape [batch_size, num_class_predictions, height, width]
+    :param pred: A prediction of shape [BATCH_SIZE, NUM_CLASS_PREDICTIONS, HEIGHT, WIDTH]
     """
     return torch.flatten(pred.permute(0, 2, 3, 1), start_dim=1)
 
 
 def concat_preds(preds: List[torch.Tensor]) -> torch.Tensor:
     """
-    Takes a list of predictions with elements of shape [batch_size, num_class_predictions, height, width],
-    transforms each element to shape [batch_size, -1] and concatenates them.
+    Takes a list of predictions with elements of shape [NUM_FEATURE_MAPS, NUM_PREDICTIONS, HEIGHT, WIDTH],
+    transforms each element to shape [BATCH_SIZE, -1] and concatenates them.
+    Results in shape [BATCH_SIZE, NUM_PREDICTIONS]
 
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#concatenating-predictions-for-multiple-scales
 
@@ -351,7 +354,7 @@ def blk_forward(
     :param cls_predictor: The class predictor to use for classification
     :param bbox_predictor: The bounding box predictor to use for prediction
     :return: A tuple containing (anchors, cls_preds, bbox_preds):
-                 - anchors: The anchor boxes created from the given block
+                 - anchors: The anchor boxes created from the given block with shape [1, NUM_ANCHORS, 4]
                  - cls_preds: The class predictions for the given block with shape
                               [BATCH_SIZE, NUM_ANCHORS * (NUM_CLASSES + 1), OUT_HEIGHT, OUT_WIDTH]
                  - bbox_preds: The prediction of bounding boxes with shape
@@ -398,7 +401,15 @@ class SSDModel(nn.Module):
         self.class_predictors = nn.ModuleList(class_predictors)
         self.bbox_predictors = nn.ModuleList(bbox_predictors)
 
-    def forward(self, x):
+    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Takes a batch of images and returns a tuple with three elements:
+        1. anchor boxes: A tensor with shape [NUM_ANCHORS, 4] in ltrb-format
+        2. class predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
+        3. bbox predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4]
+
+        :param x: A tensor with shape [BATCH_SIZE, NUM_CHANNELS, HEIGHT, WIDTH]
+        """
         anchors, cls_preds, bbox_preds = [], [], []
         outputs = self.backbone(x)
         for i, feature_map in enumerate(outputs):

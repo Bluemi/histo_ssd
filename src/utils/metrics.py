@@ -45,6 +45,19 @@ def update_mean_average_precision(
 
 
 def calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks):
+    """
+    Calculates a loss value from class predictions and bounding box regression.
+
+    Taken from: https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions
+
+    :param cls_preds: Class predictions of shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
+    :param cls_labels: Class labels of shape [BATCH_SIZE, NUM_ANCHORS]
+    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4]
+    :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
+    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]. Each negative box has mask of (0, 0, 0, 0)
+                       while each positive box has mask (1, 1, 1, 1).
+    :return:
+    """
     cls_loss = nn.CrossEntropyLoss(reduction='none')
     bbox_loss = nn.L1Loss(reduction='none')
 

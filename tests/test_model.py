@@ -2,7 +2,7 @@ import torch
 from matplotlib import pyplot as plt
 
 from models import SSDModel, Backbone
-from utils.funcs import draw_boxes
+from utils.funcs import draw_boxes, debug
 from torchvision.models.detection import ssd
 
 
@@ -18,6 +18,7 @@ elif MODEL == 'vgg16':
     LEVEL_SIZES = [38, 19, 10, 5, 3, 1]
     NUM_BOXES_PER_PIXEL = 3
     IMAGE_SIZE = 300
+BATCH_SIZE = 7
 
 
 def main():
@@ -30,7 +31,7 @@ def main():
     # print(base_model._modules)
 
     with torch.no_grad():
-        image = torch.zeros((7, 3, IMAGE_SIZE, IMAGE_SIZE))
+        image = torch.zeros((BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE))
         x = image
         for block in model.backbone.layers:
             for layer in block:
@@ -40,9 +41,10 @@ def main():
 
     anchors = anchors.squeeze(0)
 
-    # debug(anchors.shape)
-    # debug(cls_preds.shape)
-    # debug(bbox_preds.reshape((1, -1, 4)).shape)
+    debug(anchors.shape)
+    debug(cls_preds.shape)
+    debug(bbox_preds.shape)
+    debug(bbox_preds.reshape((BATCH_SIZE, -1, 4)).shape)
 
     black_image = torch.zeros((1024, 1024, 3), dtype=torch.int)
 
