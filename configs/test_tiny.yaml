@@ -9,8 +9,8 @@ hyperparameters:
   optimizer: "sgd"
   learning_rate: # 0.001  # TODO
     type: log
-    maxval: 0
-    minval: -5
+    maxval: 2
+    minval: -1
     base: 10
     # count: 8
   l2_regularization:
@@ -33,7 +33,7 @@ searcher:
   max_length:
     batches: 3000
   smaller_is_better: false
-  max_trials: 500
+  max_trials: 50
   max_concurrent_trials: 8
 entrypoint: default_trial:DefaultTrial
 environment:
