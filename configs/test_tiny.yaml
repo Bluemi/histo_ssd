@@ -34,7 +34,7 @@ searcher:
     batches: 3000
   smaller_is_better: false
   max_trials: 500
-  max_concurrent_trials: 4
+  max_concurrent_trials: 8
 entrypoint: default_trial:DefaultTrial
 environment:
   image:
