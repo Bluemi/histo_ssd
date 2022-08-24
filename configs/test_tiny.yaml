@@ -9,7 +9,7 @@ hyperparameters:
   optimizer: "sgd"
   learning_rate: # 0.001  # TODO
     type: log
-    maxval: 2
+    maxval: 1
     minval: -4
     base: 10
     # count: 8

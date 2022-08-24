@@ -136,6 +136,9 @@ class DefaultTrial(PyTorchTrial):
             'loss': loss
         }
 
+        if loss.isnan().any():
+            raise ValueError('Got NaN loss')
+
         class_max_probs = DefaultTrial._get_max_class_probs(cls_preds)
         for i, cls_max_prob in enumerate(class_max_probs):
             result['cls{}_max_prob'.format(i)] = cls_max_prob
