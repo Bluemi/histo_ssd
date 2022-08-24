@@ -21,6 +21,7 @@ DATASET = 'banana'
 # DATASET = 'lizard'
 
 MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
+MODEL_LOAD_PATH = None
 
 if DATASET == 'banana':
     NUM_CLASSES = 1
@@ -99,7 +100,8 @@ else:
     print(f'class err {cls_err:.2e}, bbox mae {bbox_mae:.2e}')
     # noinspection PyTypeChecker
     print(f'{len(train_iter.dataset)} examples on {str(device)}')
-    torch.save(net.state_dict(), MODEL_LOAD_PATH)
+    if MODEL_LOAD_PATH:
+        torch.save(net.state_dict(), MODEL_LOAD_PATH)
 
 
 # Prediction
