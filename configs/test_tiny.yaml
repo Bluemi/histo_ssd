@@ -21,6 +21,9 @@ hyperparameters:
     type: double
     minval: 0.7
     maxval: 0.95
+  hnm_norm_per_batch:
+    type: categorical
+    vals: [true, false]
   image_prediction_score_threshold: 0.4
   image_prediction_max_images: 5
   image_size: 300  # TODO

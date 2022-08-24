@@ -27,6 +27,9 @@ class DefaultTrial(PyTorchTrial):
         self.train_dataset, self.validation_dataset = self._load_dataset()
         self.num_classes = self._get_num_classes()
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
+        self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
+        assert isinstance(self.normalize_per_batch, bool)
+
         if self.negative_ratio is None:
             print('WARN: hard negative mining is disabled')
 
@@ -123,7 +126,8 @@ class DefaultTrial(PyTorchTrial):
         anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
         loss = calc_loss(
-            cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
+            cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
+            normalize_per_batch=self.normalize_per_batch
         ).mean()
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
