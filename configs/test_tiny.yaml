@@ -1,8 +1,8 @@
-name: SSD::Standard-Test::TinySSD
-description: "Test SSD Tiny Model"
+name: SSD::Standard-Test::VGG16
+description: "Test SSD VGG16 Model Lizard"
 hyperparameters:
   global_batch_size: 64
-  dataset: "banana"
+  dataset: "lizard"
   dataset_split_size: 0.8
   num_workers: 8
   backbone_arch: "vgg16"  # TODO
