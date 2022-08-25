@@ -491,6 +491,8 @@ class SSDModel(nn.Module):
                 if layer_name in new_state_dict.keys():
                     layer.requires_grad = False
 
+        return model
+
     def _get_num_anchors(self, feature_map_index: int):
         return len(self.sizes[feature_map_index]) + len(self.ratios[feature_map_index]) - 1
 

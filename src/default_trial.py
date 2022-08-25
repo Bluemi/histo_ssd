@@ -154,7 +154,7 @@ class DefaultTrial(PyTorchTrial):
 
         result = {
             'loss': loss,
-            'scheduler_lr': self.scheduler.get_lr()[0],
+            'scheduler_lr': self.scheduler.get_last_lr()[0],
         }
 
         if loss.isnan().any():

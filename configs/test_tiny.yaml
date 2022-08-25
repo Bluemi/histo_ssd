@@ -2,10 +2,10 @@ name: SSD::Standard-Test::TinySSD
 description: "Test SSD Tiny Model"
 hyperparameters:
   global_batch_size: 64
-  dataset: "lizard"
+  dataset: "banana"
   dataset_split_size: 0.8
   num_workers: 8
-  backbone_arch: "tiny"  # TODO
+  backbone_arch: "vgg16"  # TODO
   optimizer: "sgd"
   learning_rate: # 0.001  # TODO
     type: log
@@ -17,10 +17,10 @@ hyperparameters:
     # type: double
     # minval: 1e-6
     # maxval: 1e-4
-  momentum: # 0.9  # TODO
-    type: double
-    minval: 0.7
-    maxval: 0.95
+  momentum: 0.9  # TODO
+    # type: double
+    # minval: 0.7
+    # maxval: 0.95
   hnm_norm_per_batch:
     type: categorical
     vals: [true, false]
@@ -37,7 +37,7 @@ searcher:
   max_length:
     batches: 3000
   smaller_is_better: false
-  max_trials: 150
+  max_trials: 100
   max_concurrent_trials: 8
 entrypoint: default_trial:DefaultTrial
 environment:
@@ -55,8 +55,8 @@ checkpoint_storage:
   save_experiment_best: 0
 max_restarts: 0
 resources:
-  agent_label: dt-cluster
-  max_slots: 4
+  agent_label: pepper-cluster
+  max_slots: 8
   slots_per_trial: 1
 reproducibility:
   experiment_seed: 1658162417
