@@ -1,3 +1,4 @@
+import math
 from typing import List, Tuple, Reversible
 
 import torch
@@ -126,6 +127,10 @@ class Backbone(nn.Module):
         return output
 
     def get_out_channels(self) -> List[int]:
+        """
+        Calculates the number of out channels for each block in the network. The length of the list is the number of
+        feature maps produced by this model.
+        """
         out_channels = []
         last_num_channels = None
         for block in self.blocks:
@@ -342,22 +347,24 @@ def blk_forward(
 
 
 class SSDModel(nn.Module):
-    def __init__(self, num_classes, backbone_arch='tiny', debug=False):
+    def __init__(
+            self, num_classes: int, backbone_arch: str = 'tiny', min_anchor_size: float = 0.2,
+            max_anchor_size: float = 0.9, debug: bool = False
+    ):
+        """
+        Creates a new SSD Model with the given backbone architecture.
+        :param num_classes: The number of classes to predict with this model
+        :param backbone_arch: The backbone architecture. One of ["tiny", "vgg16"]
+        :param min_anchor_size: The minimum size of the anchor boxes
+        :param max_anchor_size: The maximum size of the anchor boxes
+        :param debug: Whether to print status information
+        """
         super(SSDModel, self).__init__()
         self.debug = debug
-        # TODO: sizes correct for different models?
-        if backbone_arch == 'tiny':
-            self.sizes = [[0.2, 0.272], [0.37, 0.447], [0.54, 0.619], [0.71, 0.79], [0.88, 0.961]]  # sizes from d2l
-        elif backbone_arch == 'vgg16':
-            self.sizes = [[0.07], [0.15], [0.33], [0.51], [0.69], [0.87], [1.05]]  # sizes from torchvision
-
-        self.ratios = [[1, 2, 0.5]] * 6
-        self.num_anchors = len(self.sizes[0]) + len(self.ratios[0]) - 1
         class_predictors: List[nn.Conv2d] = []
         bbox_predictors = []
 
         self.num_classes = num_classes
-        # idx_to_in_channels = [128, 128, 128, 128]
 
         # create backbone
         if backbone_arch == 'tiny':
@@ -369,12 +376,39 @@ class SSDModel(nn.Module):
 
         self.backbone = backbone
 
-        for out_channels in self.backbone.get_out_channels():
-            class_predictors.append(class_predictor(out_channels, self.num_anchors, num_classes))
-            bbox_predictors.append(box_predictor(out_channels, self.num_anchors))
+        self.sizes = self._define_sizes(len(backbone.get_out_channels()), smin=min_anchor_size, smax=max_anchor_size)
+
+        self.ratios = [[1.0, 2.0, 0.5]] * len(backbone.get_out_channels())
+
+        for feature_map_index, out_channels in enumerate(self.backbone.get_out_channels()):
+            num_anchors = self._get_num_anchors(feature_map_index)
+            class_predictors.append(class_predictor(out_channels, num_anchors, num_classes))
+            bbox_predictors.append(box_predictor(out_channels, num_anchors))
 
         self.class_predictors = nn.ModuleList(class_predictors)
         self.bbox_predictors = nn.ModuleList(bbox_predictors)
+
+    def _get_num_anchors(self, feature_map_index: int):
+        return len(self.sizes[feature_map_index]) + len(self.ratios[feature_map_index]) - 1
+
+    @staticmethod
+    def _define_sizes(num_feature_maps, smin=0.2, smax=0.9) -> List[List[float]]:
+        """
+        See paper page 6.
+        :param num_feature_maps: The number of sizes to calculate. Corresponds to the number of feature maps.
+        :param smin: The minimal anchor size
+        :param smax: The maximal anchor size
+        :return: A List of lists with sizes for each feature map with shape [NUM_FEATURE_MAPS, 2]
+        """
+        def _get_size(smin_arg, smax_arg, k_arg, m):
+            return smin_arg + ((smax_arg - smin_arg) / (m - 1)) * (k_arg - 1)
+        sizes = []
+        for i in range(num_feature_maps):
+            k = i+1
+            size1 = _get_size(smin, smax, k, num_feature_maps)
+            size2 = math.sqrt(size1 * _get_size(smin, smax, k+1, num_feature_maps))  # sk
+            sizes.append([size1, size2])
+        return sizes
 
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """

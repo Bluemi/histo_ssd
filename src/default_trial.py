@@ -33,9 +33,13 @@ class DefaultTrial(PyTorchTrial):
         if self.negative_ratio is None:
             print('WARN: hard negative mining is disabled')
 
-        # Creates a feature vector
+        # create model
         backbone_arch = self.context.get_hparam('backbone_arch')
-        model = SSDModel(num_classes=self.num_classes, backbone_arch=backbone_arch)
+        smin = self.context.get_hparams().get('min_anchor_size', 0.2)
+        smax = self.context.get_hparams().get('max_anchor_size', 0.9)
+        model = SSDModel(
+            num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
+        )
 
         # pred layer
         self.model = self.context.wrap_model(model)
