@@ -25,7 +25,7 @@ hyperparameters:
     type: categorical
     vals: [true, false]
   image_prediction_score_threshold: 0.1
-  image_prediction_max_images: 8
+  image_prediction_max_images: 0
   image_size: 300  # TODO
   negative_ratio: 3.0
   pretrained: true
