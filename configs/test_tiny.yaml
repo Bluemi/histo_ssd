@@ -1,11 +1,11 @@
 name: SSD::Standard-Test::TinySSD
-description: "Test SSD Banana-Dataset"
+description: "Test SSD Tiny Model"
 hyperparameters:
   global_batch_size: 64
-  dataset: "banana"
+  dataset: "lizard"
   dataset_split_size: 0.8
   num_workers: 8
-  backbone_arch: "vgg16"  # TODO
+  backbone_arch: "tiny"  # TODO
   optimizer: "sgd"
   learning_rate: # 0.001  # TODO
     type: log
@@ -37,7 +37,7 @@ searcher:
   max_length:
     batches: 3000
   smaller_is_better: false
-  max_trials: 250
+  max_trials: 150
   max_concurrent_trials: 8
 entrypoint: default_trial:DefaultTrial
 environment:
@@ -55,8 +55,8 @@ checkpoint_storage:
   save_experiment_best: 0
 max_restarts: 0
 resources:
-  agent_label: pepper-cluster
-  max_slots: 8
+  agent_label: dt-cluster
+  max_slots: 4
   slots_per_trial: 1
 reproducibility:
   experiment_seed: 1658162417
