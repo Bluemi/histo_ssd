@@ -1,14 +1,65 @@
 import math
+from collections import OrderedDict
 from typing import List, Tuple, Reversible
 
 import torch
 from torch import nn
 import torch.nn.functional as functional
+from torch.hub import load_state_dict_from_url
 
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
 
 
 RELU_INPLACE = False
+
+KEY_MAPPING = OrderedDict([
+    ('backbone.blocks.0.0.weight', 'backbone.features.0.weight'),
+    ('backbone.blocks.0.0.bias', 'backbone.features.0.bias'),
+    ('backbone.blocks.0.2.weight', 'backbone.features.2.weight'),
+    ('backbone.blocks.0.2.bias', 'backbone.features.2.bias'),
+    ('backbone.blocks.0.5.weight', 'backbone.features.5.weight'),
+    ('backbone.blocks.0.5.bias', 'backbone.features.5.bias'),
+    ('backbone.blocks.0.7.weight', 'backbone.features.7.weight'),
+    ('backbone.blocks.0.7.bias', 'backbone.features.7.bias'),
+    ('backbone.blocks.0.10.weight', 'backbone.features.10.weight'),
+    ('backbone.blocks.0.10.bias', 'backbone.features.10.bias'),
+    ('backbone.blocks.0.12.weight', 'backbone.features.12.weight'),
+    ('backbone.blocks.0.12.bias', 'backbone.features.12.bias'),
+    ('backbone.blocks.0.14.weight', 'backbone.features.14.weight'),
+    ('backbone.blocks.0.14.bias', 'backbone.features.14.bias'),
+    ('backbone.blocks.0.17.weight', 'backbone.features.17.weight'),
+    ('backbone.blocks.0.17.bias', 'backbone.features.17.bias'),
+    ('backbone.blocks.0.19.weight', 'backbone.features.19.weight'),
+    ('backbone.blocks.0.19.bias', 'backbone.features.19.bias'),
+    ('backbone.blocks.0.21.weight', 'backbone.features.21.weight'),
+    ('backbone.blocks.0.21.bias', 'backbone.features.21.bias'),
+    ('backbone.blocks.1.1.weight', 'backbone.extra.0.1.weight'),
+    ('backbone.blocks.1.1.bias', 'backbone.extra.0.1.bias'),
+    ('backbone.blocks.1.3.weight', 'backbone.extra.0.3.weight'),
+    ('backbone.blocks.1.3.bias', 'backbone.extra.0.3.bias'),
+    ('backbone.blocks.1.5.weight', 'backbone.extra.0.5.weight'),
+    ('backbone.blocks.1.5.bias', 'backbone.extra.0.5.bias'),
+    ('backbone.blocks.1.7.1.weight', 'backbone.extra.0.7.1.weight'),
+    ('backbone.blocks.1.7.1.bias', 'backbone.extra.0.7.1.bias'),
+    ('backbone.blocks.1.7.3.weight', 'backbone.extra.0.7.3.weight'),
+    ('backbone.blocks.1.7.3.bias', 'backbone.extra.0.7.3.bias'),
+    ('backbone.blocks.2.0.weight', 'backbone.extra.1.0.weight'),
+    ('backbone.blocks.2.0.bias', 'backbone.extra.1.0.bias'),
+    ('backbone.blocks.2.2.weight', 'backbone.extra.1.2.weight'),
+    ('backbone.blocks.2.2.bias', 'backbone.extra.1.2.bias'),
+    ('backbone.blocks.3.0.weight', 'backbone.extra.2.0.weight'),
+    ('backbone.blocks.3.0.bias', 'backbone.extra.2.0.bias'),
+    ('backbone.blocks.3.2.weight', 'backbone.extra.2.2.weight'),
+    ('backbone.blocks.3.2.bias', 'backbone.extra.2.2.bias'),
+    ('backbone.blocks.4.0.weight', 'backbone.extra.3.0.weight'),
+    ('backbone.blocks.4.0.bias', 'backbone.extra.3.0.bias'),
+    ('backbone.blocks.4.2.weight', 'backbone.extra.3.2.weight'),
+    ('backbone.blocks.4.2.bias', 'backbone.extra.3.2.bias'),
+    ('backbone.blocks.5.0.weight', 'backbone.extra.4.0.weight'),
+    ('backbone.blocks.5.0.bias', 'backbone.extra.4.0.bias'),
+    ('backbone.blocks.5.2.weight', 'backbone.extra.4.2.weight'),
+    ('backbone.blocks.5.2.bias', 'backbone.extra.4.2.bias'),
+])
 
 
 def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.Conv2d:
@@ -388,6 +439,58 @@ class SSDModel(nn.Module):
         self.class_predictors = nn.ModuleList(class_predictors)
         self.bbox_predictors = nn.ModuleList(bbox_predictors)
 
+    @staticmethod
+    def from_state_dict(
+        state_dict_path: str, num_classes: int, backbone_arch: str = 'tiny', min_anchor_size: float = 0.2,
+        max_anchor_size: float = 0.9, freeze_pretrained: bool = False, debug: bool = False
+    ):
+        """
+        Creates a new SSD Model and loads the given state dict.
+
+        :param state_dict_path: The path to load. If DOWNLOAD the model will be downloaded on the fly.
+        :param num_classes: The number of classes to predict with this model
+        :param backbone_arch: The backbone architecture. One of ["tiny", "vgg16"]
+        :param min_anchor_size: The minimum size of the anchor boxes
+        :param max_anchor_size: The maximum size of the anchor boxes
+        :param freeze_pretrained: If True, pretrained layers are frozen at the start.
+        :param debug: Whether to print status information
+        """
+        model = SSDModel(
+            num_classes=num_classes,
+            backbone_arch=backbone_arch,
+            min_anchor_size=min_anchor_size,
+            max_anchor_size=max_anchor_size,
+            debug=debug
+        )
+        if state_dict_path == 'DOWNLOAD':
+            model_url = "https://download.pytorch.org/models/ssd300_vgg16_coco-b556d3b4.pth"
+            state_dict = load_state_dict_from_url(model_url, progress=True)
+        else:
+            state_dict = torch.load('../ssd300_vgg16_coco-b556d3b4.pth')
+
+        # remove unused keys
+        remove_keys = []
+        for key in state_dict.keys():
+            if key.startswith('head.'):
+                remove_keys.append(key)
+        for remove_key in remove_keys:
+            del state_dict[remove_key]
+
+        # rename keys
+        new_state_dict = []
+        for new_key, old_key in KEY_MAPPING.items():
+            new_state_dict.append(
+                (new_key, state_dict[old_key])
+            )
+        new_state_dict = OrderedDict(new_state_dict)
+
+        model.load_state_dict(new_state_dict, strict=False)
+
+        if freeze_pretrained:
+            for layer_name, layer in model.named_parameters():
+                if layer_name in new_state_dict.keys():
+                    layer.requires_grad = False
+
     def _get_num_anchors(self, feature_map_index: int):
         return len(self.sizes[feature_map_index]) + len(self.ratios[feature_map_index]) - 1
 
@@ -409,6 +512,10 @@ class SSDModel(nn.Module):
             size2 = math.sqrt(size1 * _get_size(smin, smax, k+1, num_feature_maps))  # sk
             sizes.append([size1, size2])
         return sizes
+
+    def unfreeze(self):
+        for layer in self.parameters():
+            layer.requires_grad = True
 
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """

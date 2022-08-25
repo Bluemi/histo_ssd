@@ -18,6 +18,9 @@ from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision, calc_loss
 
 
+DEFAULT_WARMUP_BATCHES = 300
+
+
 class DefaultTrial(PyTorchTrial):
     def __init__(self, context: PyTorchTrialContext) -> None:
         super().__init__(context)
@@ -37,9 +40,18 @@ class DefaultTrial(PyTorchTrial):
         backbone_arch = self.context.get_hparam('backbone_arch')
         smin = self.context.get_hparams().get('min_anchor_size', 0.2)
         smax = self.context.get_hparams().get('max_anchor_size', 0.9)
-        model = SSDModel(
-            num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
-        )
+        self.pretrained = self.context.get_hparam('pretrained')
+        self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
+
+        if self.pretrained:
+            model = SSDModel.from_state_dict(
+                state_dict_path='DOWNLOAD', num_classes=self.num_classes, backbone_arch=backbone_arch,
+                min_anchor_size=smin, max_anchor_size=smax, freeze_pretrained=True
+            )
+        else:
+            model = SSDModel(
+                num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
+            )
 
         # pred layer
         self.model = self.context.wrap_model(model)
@@ -127,6 +139,10 @@ class DefaultTrial(PyTorchTrial):
         boxes = batch['boxes']
         self.optimizer.zero_grad()
 
+        if self.pretrained and batch_idx >= self.warmup_batches:
+            self.model.unfreeze()
+            self.pretrained = False  # dont unfreeze again
+
         anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
         loss = calc_loss(
@@ -137,7 +153,8 @@ class DefaultTrial(PyTorchTrial):
         self.context.step_optimizer(self.optimizer)
 
         result = {
-            'loss': loss
+            'loss': loss,
+            'scheduler_lr': self.scheduler.get_lr()[0],
         }
 
         if loss.isnan().any():
