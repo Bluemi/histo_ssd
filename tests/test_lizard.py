@@ -3,10 +3,12 @@ from pathlib import Path
 import cProfile
 
 import numpy as np
+import torch
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
 from datasets.lizard_detection import LizardDetectionDataset
-from utils.funcs import debug
+from utils.funcs import debug, draw_boxes
 
 
 def main():
@@ -28,11 +30,17 @@ def main():
     label_distribution = defaultdict(int)
     sample_counter = 0
     for batch in data_loader:
-        for sample in batch['boxes']:
+        for image, sample in zip(batch['image'], batch['boxes']):
+            debug(sample.shape)
             sample_counter += 1
             for box in sample:
                 label = box[0].item()
                 label_distribution[label] += 1
+            image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+            draw_boxes(image, sample[:, 1:], box_format='ltrb')
+            plt.imshow(image)
+            plt.show()
+
     for label in sorted(label_distribution.keys()):
         print('{}: {}'.format(label, label_distribution[label]))
     print('{} samples'.format(sample_counter))

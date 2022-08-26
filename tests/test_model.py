@@ -49,9 +49,10 @@ def main():
     # background_image = torch.zeros((1024, 1024, 3), dtype=torch.int)
     background_image = imread('res/pannuke_10_sample.png')
 
-    add_boxes(background_image, anchors, x=0.5, y=0.5, level=0, num_boxes=1, color=(255, 0, 0))
-    add_boxes(background_image, anchors, x=0.5, y=0.5, level=1, num_boxes=1, color=(0, 255, 0))
-    add_boxes(background_image, anchors, x=0.5, y=0.5, level=2, num_boxes=1, color=(0, 0, 255))
+    add_boxes(background_image, anchors, x=15, y=16, level=0, num_boxes=1, color=(255, 0, 0))
+    add_boxes(background_image, anchors, x=15, y=15, level=0, num_boxes=1, color=(0, 255, 0))
+    # add_boxes(background_image, anchors, x=0.5, y=0.5, level=1, num_boxes=1, color=(0, 255, 0))
+    # add_boxes(background_image, anchors, x=0.5, y=0.5, level=2, num_boxes=1, color=(0, 0, 255))
 
     plt.imshow(background_image)
     plt.show()

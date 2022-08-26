@@ -42,7 +42,7 @@ def get_lizard(image_size):
 
 
 def get_banana():
-    train_data_loader, _ = load_data_bananas(32, verbose=False)
+    train_data_loader, _ = load_data_bananas('../data/banana-detection', 32, verbose=False)
     return train_data_loader, 1
 
 

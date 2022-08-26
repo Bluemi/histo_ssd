@@ -18,7 +18,7 @@ def main():
     print('output bbox preds:', bbox_preds.shape)
 
     batch_size = 32
-    train_iter, _ = load_data_bananas(batch_size)
+    train_iter, _ = load_data_bananas('../data/banana-detection', batch_size)
 
     device, net = 'cpu', SSDModel(num_classes=1)
     trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
