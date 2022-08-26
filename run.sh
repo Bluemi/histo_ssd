@@ -31,7 +31,11 @@ case "$1" in
 		;;
 	r)
 		shift
-		python3 ./utils/start_experiment.py -v "./configs/base_config.yaml" "$@"
+		if [ "$1" == "--dry" ]; then
+			dry='--dry'
+			shift
+		fi
+		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "$@"
 		;;
 	*)
 		PYTHONPATH=./src python3 ./tests/test_function.py

@@ -1,5 +1,5 @@
 name: SSD::Standard-Test
-description: "{network_arch}-Model on {dataset}-Dataset"
+description: "{network_arch}-Model on {dataset}-Dataset {action}"
 hyperparameters:
   global_batch_size: 64
   num_workers: 8

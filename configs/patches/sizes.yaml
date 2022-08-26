@@ -1,3 +1,6 @@
+variables:
+  description:
+    action: "- Test Sizes"
 hyperparameters:
   min_anchor_size:
     type: double
@@ -13,4 +16,4 @@ searcher:
   max_length:
     batches: 3000
   smaller_is_better: true
-  max_trials: 250
+  max_trials: 150

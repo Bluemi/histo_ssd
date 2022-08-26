@@ -15,6 +15,7 @@ def parse_args():
     parser.add_argument('config', type=argparse.FileType('r'))
     parser.add_argument('patches', type=argparse.FileType('r'), nargs='*')
     parser.add_argument('--verbose', '-v', action='count', default=0)
+    parser.add_argument('--dry', action='store_true')
 
     return parser.parse_args()
 
@@ -64,9 +65,12 @@ def main():
     if args.verbose >= 2:
         pprint(experiment_config)
 
-    d = Determined(master='https://dt1.f4.htw-berlin.de:8443')
-    experiment_ref = d.create_experiment(experiment_config, MODEL_DIR)
-    print(experiment_ref.id)
+    if args.dry:
+        pprint(experiment_config)
+    else:
+        d = Determined(master='https://dt1.f4.htw-berlin.de:8443')
+        experiment_ref = d.create_experiment(experiment_config, MODEL_DIR)
+        print(experiment_ref.id)
 
 
 if __name__ == '__main__':
