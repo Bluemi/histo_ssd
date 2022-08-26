@@ -455,6 +455,7 @@ class SSDModel(nn.Module):
         :param freeze_pretrained: If True, pretrained layers are frozen at the start.
         :param debug: Whether to print status information
         """
+        assert backbone_arch == 'vgg16', 'can only use pretrained vgg16'
         model = SSDModel(
             num_classes=num_classes,
             backbone_arch=backbone_arch,
