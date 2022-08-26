@@ -1,0 +1,6 @@
+hyperparameters:
+  learning_rate:
+    type: log
+    maxval: 0
+    minval: -4
+    base: 10

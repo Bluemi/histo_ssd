@@ -1,0 +1,6 @@
+variables:
+  description:
+    network_arch: "Tiny"
+hyperparameters:
+  backbone_arch: "tiny"
+  image_size: 256

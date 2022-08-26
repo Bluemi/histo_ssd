@@ -1,0 +1,6 @@
+variables:
+  description:
+    dataset: "Lizard"
+hyperparameters:
+  dataset: "lizard"
+  dataset_split_size: 0.8

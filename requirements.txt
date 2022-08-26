@@ -1,4 +1,4 @@
-determined==0.18.3
+determined==0.19.1
 cbmi-utils==0.3.29
 torch==1.11.0+cu113
 numpy~=1.22

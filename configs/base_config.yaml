@@ -1,0 +1,37 @@
+name: SSD::Standard-Test
+description: "{network_arch}-Model on {dataset}-Dataset"
+hyperparameters:
+  global_batch_size: 64
+  num_workers: 8
+  optimizer: "sgd"
+  learning_rate: 0.3
+  l2_regularization: 1e-5
+  momentum: 0.9
+  hnm_norm_per_batch: true
+  image_prediction_score_threshold: 0.7
+  image_prediction_max_images: 0
+  negative_ratio: 3.0
+min_validation_period:
+  batches: 200
+searcher:
+  name: single
+  metric: map
+  max_length:
+    batches: 3000
+  smaller_is_better: false
+entrypoint: default_trial:DefaultTrial
+environment:
+  image:
+    cpu: "deepprojects/determined-pytorch-1.12-cpu:1.0.1"
+    gpu: "deepprojects/determined-cuda-113-pytorch-1.12-gpu:1.0.0"
+bind_mounts:
+  - host_path: "/data/ldap/histopathologic"
+    container_path: "/data/ldap/histopathologic"
+    read_only: true
+checkpoint_storage:
+  save_trial_best: 0
+  save_trial_latest: 0
+  save_experiment_best: 0
+max_restarts: 0
+reproducibility:
+  experiment_seed: 1658162417

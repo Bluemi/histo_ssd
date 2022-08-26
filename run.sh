@@ -29,6 +29,10 @@ case "$1" in
 	m|model)
 		PYTHONPATH=./src python3 ./tests/test_model.py
 		;;
+	r)
+		shift
+		python3 ./utils/start_experiment.py -v "./configs/base_config.yaml" "$@"
+		;;
 	*)
 		PYTHONPATH=./src python3 ./tests/test_function.py
 		;;
