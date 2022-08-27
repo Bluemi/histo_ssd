@@ -18,7 +18,7 @@ from utils.funcs import draw_boxes
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
-# DATASET = 'lizard'
+DATASET = 'lizard'
 
 MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
 MODEL_LOAD_PATH = None
@@ -40,7 +40,8 @@ elif DATASET == 'lizard':
         image_size=np.array([224, 224]),
         image_stride=np.array([224, 224]),
         use_cache=True,
-        show_progress=False,
+        show_progress=True,
+        force_one_class=True,
     )
     train_dataset, val_dataset = dataset.split(0.8)
     train_iter = DataLoader(
