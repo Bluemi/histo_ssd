@@ -92,7 +92,7 @@ class LizardDetectionDataset(Dataset):
     @staticmethod
     def from_datadir(
         data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
-        show_progress: bool = False
+        show_progress: bool = False, force_one_class: bool = False,
     ):
         """
         Args:
@@ -102,6 +102,7 @@ class LizardDetectionDataset(Dataset):
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
             use_cache: Whether to keep loaded images in memory. Defaults to False.
             show_progress: Whether to show loading progress with tqdm
+            force_one_class: Always return class 0 as label
         """
         # use image size as image stride, if no images stride provided
         image_stride = image_size if image_stride is None else image_stride
@@ -115,6 +116,7 @@ class LizardDetectionDataset(Dataset):
             image_size=image_size,
             max_boxes_per_snapshot=max_boxes_per_snapshot,
             image_cache={} if use_cache else None,
+            force_one_class=force_one_class,
         )
 
     @staticmethod

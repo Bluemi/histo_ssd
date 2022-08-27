@@ -4,7 +4,7 @@ hyperparameters:
   global_batch_size: 64
   num_workers: 8
   optimizer: "sgd"
-  learning_rate: 0.3
+  learning_rate: 0.15
   l2_regularization: 1e-5
   momentum: 0.9
   hnm_norm_per_batch: true
@@ -18,7 +18,7 @@ searcher:
   name: single
   metric: map
   max_length:
-    batches: 3000
+    batches: 12000
   smaller_is_better: false
 entrypoint: default_trial:DefaultTrial
 environment:

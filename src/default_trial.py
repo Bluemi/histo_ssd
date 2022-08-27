@@ -17,7 +17,7 @@ from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
-from utils.metrics import update_mean_average_precision, calc_loss, calc_cls_bbox_loss
+from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 
 DEFAULT_WARMUP_BATCHES = 300
 
@@ -279,7 +279,12 @@ class DefaultTrial(PyTorchTrial):
         elif augmentation_stack == 'minimal':
             # noinspection PyUnresolvedReferences
             mean, std = self.train_dataset.normalization_values()
-            dataset = AugmentationWrapper(self.train_dataset, [transforms.Normalize(mean, std)])
+            dataset = AugmentationWrapper(
+                self.train_dataset,
+                [
+                    ('image', transforms.Normalize(mean, std))
+                ]
+            )
         else:
             raise ValueError('Unknown augmentation stack: {}'.format(augmentation_stack))
 
