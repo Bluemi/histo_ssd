@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn
@@ -50,7 +50,7 @@ def update_mean_average_precision(
 def calc_loss(
         cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
         normalize_per_batch: bool = True
-):
+) -> torch.Tensor:
     """
     Calculates a loss value from class predictions and bounding box regression.
 
@@ -65,7 +65,33 @@ def calc_loss(
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
     :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample
-    :return:
+    :return: A single loss value
+    """
+    cls_loss, bbox_loss = calc_cls_bbox_loss(
+        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio, normalize_per_batch
+    )
+    return (cls_loss + bbox_loss).mean()
+
+
+def calc_cls_bbox_loss(
+        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
+        normalize_per_batch: bool = True
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Calculates a loss value from class predictions and bounding box regression.
+
+    Taken from: https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions
+
+    :param cls_preds: Class predictions of shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
+    :param cls_labels: Class labels of shape [BATCH_SIZE, NUM_ANCHORS]
+    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4]
+    :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
+    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]. Each negative box has mask of (0, 0, 0, 0)
+                       while each positive box has mask (1, 1, 1, 1).
+    :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
+                           are used. If not set or set to None, all negative samples will be used.
+    :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample.
+    :return: A tuple [class_loss, bbox_loss] each with shape [BATCHSIZE].
     """
     cls_loss = nn.CrossEntropyLoss(reduction='none')
     bbox_loss = nn.L1Loss(reduction='none')
@@ -102,7 +128,7 @@ def calc_loss(
     bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)
     assert cls.shape == torch.Size([batch_size])
     assert bbox.shape == torch.Size([batch_size])
-    return cls + bbox
+    return cls, bbox
 
 
 def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):

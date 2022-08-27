@@ -15,8 +15,7 @@ from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes
-from utils.metrics import update_mean_average_precision, calc_loss
-
+from utils.metrics import update_mean_average_precision, calc_loss, calc_cls_bbox_loss
 
 DEFAULT_WARMUP_BATCHES = 300
 
@@ -145,15 +144,18 @@ class DefaultTrial(PyTorchTrial):
 
         anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
-        loss = calc_loss(
+        cls_loss, bbox_loss = calc_cls_bbox_loss(
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
             normalize_per_batch=self.normalize_per_batch
-        ).mean()
+        )
+        loss = (cls_loss + bbox_loss).mean()
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
         result = {
             'loss': loss,
+            'bbox_loss': bbox_loss.mean(),
+            'cls_loss': cls_loss.mean(),
             'scheduler_lr': self.scheduler.get_last_lr()[0],
         }
 
@@ -224,13 +226,16 @@ class DefaultTrial(PyTorchTrial):
         image_counter = 0
         losses = []
         all_max_class_probs = []
+        cls_loss = None
+        bbox_loss = None
         for batch in data_loader:
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
 
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
-            loss = calc_loss(
+            cls_loss, bbox_loss = calc_cls_bbox_loss(
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
-            ).mean()
+            )
+            loss = (cls_loss + bbox_loss).mean()
             losses.append(loss)
 
             batch_output = predict(anchors, cls_preds, bbox_preds)
@@ -248,6 +253,8 @@ class DefaultTrial(PyTorchTrial):
         result = mean_average_precision.compute()
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
+        result['cls_loss'] = torch.mean(cls_loss)
+        result['bbox_loss'] = torch.mean(bbox_loss)
 
         class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)[0]
         for i, cls_max_prob in enumerate(class_max_probs):
@@ -268,7 +275,7 @@ class DefaultTrial(PyTorchTrial):
         return DataLoader(
             self.validation_dataset,
             batch_size=self.context.get_per_slot_batch_size(),
-            shuffle=False,
+            shuffle=False,  # set to True, to see different images in Tensorboard
             num_workers=self.context.get_hparam('num_workers'),
             pin_memory=True
         )
