@@ -33,6 +33,13 @@ class BananasDataset(torch.utils.data.Dataset):
         if verbose:
             print('read ' + str(len(self.features)) + (f' training examples' if is_train else f' validation examples'))
 
+    @staticmethod
+    def normalization_values():
+        # Dont normalize banana dataset
+        mean = [0.0, 0.0, 0.0]
+        std = [1.0,  1.0, 1.0]
+        return mean, std
+
     def __getitem__(self, idx):
         image = self.features[idx].float()
         for transform in self.transforms:

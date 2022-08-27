@@ -5,12 +5,14 @@ import torchvision
 import torch.nn.functional as functional
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
+from torchvision import transforms
 from torchmetrics.detection import MeanAveragePrecision
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
 import matplotlib.pyplot as plt
 
 from datasets import LizardDetectionDataset
+from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
@@ -111,6 +113,7 @@ class DefaultTrial(PyTorchTrial):
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
         print('Done', flush=True)
+
         return datasets
 
     def _get_num_classes(self) -> int:
@@ -269,8 +272,19 @@ class DefaultTrial(PyTorchTrial):
         return result
 
     def build_training_data_loader(self) -> DataLoader:
+        # augmentation
+        augmentation_stack = self.context.get_hparams().get('augmentation_stack')
+        if augmentation_stack is None:
+            dataset = self.train_dataset
+        elif augmentation_stack == 'minimal':
+            # noinspection PyUnresolvedReferences
+            mean, std = self.train_dataset.normalization_values()
+            dataset = AugmentationWrapper(self.train_dataset, [transforms.Normalize(mean, std)])
+        else:
+            raise ValueError('Unknown augmentation stack: {}'.format(augmentation_stack))
+
         return DataLoader(
-            self.train_dataset,
+            dataset,
             batch_size=self.context.get_per_slot_batch_size(),
             shuffle=True,
             num_workers=self.context.get_hparam('num_workers'),

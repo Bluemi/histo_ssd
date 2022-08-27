@@ -315,6 +315,13 @@ class LizardDetectionDataset(Dataset):
             return False
         return True
 
+    @staticmethod
+    def normalization_values():
+        # Calculated on the 'train' set
+        mean = [0.64788544, 0.4870253,  0.68022424]
+        std = [0.2539682,  0.22869842, 0.24064516]
+        return mean, std
+
     def pad_join_boxes_and_labels(self, bounding_boxes: np.ndarray, class_labels: np.ndarray) -> np.ndarray:
         """
         Converts given bounding_boxes from tlbr to ltrb format.
