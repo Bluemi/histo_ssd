@@ -69,7 +69,7 @@ class Snapshot:
 class LizardDetectionDataset(Dataset):
     def __init__(
             self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, max_boxes_per_snapshot: int,
-            image_cache=None
+            image_cache=None, force_one_class: bool = False,
     ):
         """
         Args:
@@ -79,6 +79,7 @@ class LizardDetectionDataset(Dataset):
             image_size: The size of the images returned by __getitem__ as [height, width]
             max_boxes_per_snapshot: The maximum number of bounding boxes per snapshot
             image_cache: The image cache to use. If None no image caching will be used.
+            force_one_class: Always return class 0 as label
         """
         self.snapshots = snapshots
         self.data_dir = data_dir
@@ -86,6 +87,7 @@ class LizardDetectionDataset(Dataset):
         self.image_cache: Dict[Path, np.ndarray] or None = image_cache
         self.max_boxes_per_snapshot = max_boxes_per_snapshot
         self.to_tensor = transforms.ToTensor()
+        self.force_one_class = force_one_class
 
     @staticmethod
     def from_datadir(
@@ -118,13 +120,14 @@ class LizardDetectionDataset(Dataset):
     @staticmethod
     def from_avocado(
             image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
-            show_progress: bool = False
+            show_progress: bool = False, force_one_class: bool = False,
     ):
         """
         Args:
             image_size: The size of the images returned by __getitem__ as [height, width]
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
             use_cache: Whether to keep loaded images in memory. Defaults to False.
+            force_one_class: If set to True, will always give class 0 as class label
         """
         return LizardDetectionDataset.from_datadir(
             data_dir=AVOCADO_DATASET_LOCATION,
@@ -132,6 +135,7 @@ class LizardDetectionDataset(Dataset):
             image_stride=image_stride,
             use_cache=use_cache,
             show_progress=show_progress,
+            force_one_class=force_one_class,
         )
 
     @staticmethod
@@ -326,6 +330,9 @@ class LizardDetectionDataset(Dataset):
         assert class_labels.shape[0] == bounding_boxes.shape[0]
         assert (class_labels >= 0).all()
         assert (class_labels < len(LABELS)).all()
+
+        if self.force_one_class:
+            class_labels = 0  # always state class 0
 
         # convert from tlbr to ltrb
         indices = torch.LongTensor([1, 0, 3, 2])

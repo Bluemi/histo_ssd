@@ -84,6 +84,7 @@ class DefaultTrial(PyTorchTrial):
         dataset_name = self.context.get_hparam('dataset')
         split_size = self.context.get_hparam('dataset_split_size')
         image_size = self.context.get_hparams().get('image_size', 224)
+        force_one_class = self.context.get_hparams().get('force_one_class', False)
 
         print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
         if dataset_name == 'lizard':
@@ -92,6 +93,7 @@ class DefaultTrial(PyTorchTrial):
                 image_stride=np.array([image_size, image_size]),
                 use_cache=True,
                 show_progress=False,
+                force_one_class=force_one_class,
             )
             datasets = dataset.split(split_size)
         elif dataset_name == 'banana':
@@ -119,7 +121,11 @@ class DefaultTrial(PyTorchTrial):
         """
         dataset_name = self.context.get_hparam('dataset')
         if dataset_name == 'lizard':
-            return 6
+            force_one_class = self.context.get_hparams().get('force_one_class', False)
+            if force_one_class:
+                return 1
+            else:
+                return 6
         elif dataset_name == 'banana':
             return 1
         else:
