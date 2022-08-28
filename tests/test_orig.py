@@ -18,10 +18,10 @@ from utils.funcs import draw_boxes
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
-DATASET = 'lizard'
+# DATASET = 'lizard'
 
 MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
-MODEL_LOAD_PATH = None
+# MODEL_LOAD_PATH = None
 
 if DATASET == 'banana':
     NUM_CLASSES = 1
@@ -117,7 +117,7 @@ for batch in val_iter:
     ground_truth_boxes = batch['boxes']
 
     anchors, cls_preds, bbox_preds = net(images)
-    batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.8)
+    batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0)
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 

@@ -15,7 +15,7 @@ hyperparameters:
   enable_class_metrics: false
   use_clock: false
 min_validation_period:
-  batches: 200
+  batches: 500
 searcher:
   name: single
   metric: map
