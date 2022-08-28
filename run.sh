@@ -37,7 +37,13 @@ case "$1" in
 		fi
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "$@"
 		;;
-	*)
+	f|function)
 		PYTHONPATH=./src python3 ./tests/test_function.py
+		;;
+	g|gpu)
+		PYTHONPATH=./src python3 ./tests/test_gpu.py
+		;;
+	*)
+		echo "invalid run option"
 		;;
 esac

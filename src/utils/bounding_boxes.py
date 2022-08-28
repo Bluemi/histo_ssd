@@ -201,11 +201,9 @@ def assign_anchor_to_ground_truth_boxes(
     :param ground_truth: A batch of ground truth boxes with shape (B, 4)
     """
     num_anchors, num_gt_boxes = anchor_boxes.shape[0], ground_truth.shape[0]
-    # Element x_ij in the i-th row and j-th column is the IoU of the anchor
-    # box i and the ground-truth bounding box j
+    # Element x_ij in the i-th row and j-th column is the IoU of the anchor box i and the ground-truth bounding box j
     jaccard = intersection_over_union(anchor_boxes, ground_truth)
-    # Initialize the tensor to hold the assigned ground-truth bounding box for
-    # each anchor
+    # Initialize the tensor to hold the assigned ground-truth bounding box for each anchor
     anchors_bbox_map = torch.full((num_anchors,), -1, dtype=torch.long, device=device)
     # Assign ground-truth bounding boxes according to the threshold
     max_ious, indices = torch.max(jaccard, dim=1)
@@ -264,7 +262,7 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
 
     :param anchors: List of anchor boxes with shape [NUM_ANCHOR_BOXES, 4] in tlbr-format.
     :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
-                   The 5 comes from (classlabel, t, l, b, r).
+                   The 5 comes from (classlabel, t, l, b, r). If the classlabel is -1, the sample will be ignored.
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
     """
@@ -274,6 +272,12 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
 
     for i in range(batch_size):
         label = labels[i, :, :]
+
+        # filter out padding bounding boxes
+        class_label = label[:, 0]
+        indices = torch.where(class_label >= 0)[0]
+        label = label[indices]
+
         anchors_bbox_map = assign_anchor_to_ground_truth_boxes(anchors, label[:, 1:], device)
         bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, 4)
         # Initialize class labels and assigned bounding box coordinates with zeros
