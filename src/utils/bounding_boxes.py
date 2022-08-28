@@ -273,9 +273,9 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
     for i in range(batch_size):
         label = labels[i, :, :]
 
-        # filter out padding bounding boxes
+        # filter out padding bounding boxes with class_label == -1
         class_label = label[:, 0]
-        indices = torch.where(class_label >= 0)[0]
+        indices = torch.nonzero(class_label >= 0).flatten()
         label = label[indices]
 
         anchors_bbox_map = assign_anchor_to_ground_truth_boxes(anchors, label[:, 1:], device)

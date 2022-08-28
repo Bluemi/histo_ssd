@@ -8,7 +8,7 @@ def main():
     debug(a)
     labels = a[:, 0]
     debug(labels)
-    indices = torch.where(labels >= 0)[0]
+    indices = torch.nonzero(labels >= 0).flatten()
     debug(indices)
     debug(a[indices])
 
