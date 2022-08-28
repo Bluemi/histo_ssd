@@ -16,6 +16,7 @@ from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
+from utils.clock import Clock
 from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 
@@ -44,6 +45,7 @@ class DefaultTrial(PyTorchTrial):
         self.pretrained = self.context.get_hparams().get('pretrained', False)
         self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
         self.enable_class_metrics = self.context.get_hparams().get('enable_class_metrics', False)
+        self.use_clock = self.context.get_hparams().get('use_clock', False)
 
         if self.pretrained:
             model = SSDModel.from_state_dict(
@@ -144,6 +146,7 @@ class DefaultTrial(PyTorchTrial):
     def train_batch(
         self, batch: TorchData, epoch_idx: int, batch_idx: int
     ) -> Dict[str, Any]:
+        train_batch_clock = Clock()
         image = batch['image']
         boxes = batch['boxes']
         self.optimizer.zero_grad()
@@ -175,6 +178,9 @@ class DefaultTrial(PyTorchTrial):
         class_max_probs = DefaultTrial._get_max_class_probs(cls_preds)
         for i, cls_max_prob in enumerate(class_max_probs):
             result['cls{}_max_prob'.format(i)] = cls_max_prob
+
+        if self.use_clock:
+            train_batch_clock.stop_and_print('train_batch() took: {} seconds')
 
         return result
 
@@ -227,6 +233,7 @@ class DefaultTrial(PyTorchTrial):
         :param data_loader: The dataloader of the evaluation dataset.
         :return: Dict containing mAP value
         """
+        eval_clock = Clock()
         # noinspection PyProtectedMember
         batch_idx = self.context._current_batch_idx + 1
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
@@ -238,6 +245,7 @@ class DefaultTrial(PyTorchTrial):
         all_max_class_probs = []
         cls_loss = None
         bbox_loss = None
+        go_through_dataset_clock = Clock()
         for batch in data_loader:
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
 
@@ -250,7 +258,10 @@ class DefaultTrial(PyTorchTrial):
 
             batch_output = predict(anchors, cls_preds, bbox_preds)
 
+            update_mean_average_precision_clock = Clock()
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
+            if self.use_clock:
+                update_mean_average_precision_clock.stop_and_print('update_map() took {} seconds')
 
             max_class_probs = DefaultTrial._get_max_class_probs(cls_preds)
             all_max_class_probs.append(max_class_probs)
@@ -258,9 +269,14 @@ class DefaultTrial(PyTorchTrial):
             # write prediction images
             if image_counter < image_prediction_max_images:
                 image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
+        if self.use_clock:
+            go_through_dataset_clock.stop_and_print('predict dataset took {} seconds')
 
         # TODO: result['map_per_class'] should be returned separate for each class
+        mean_average_precision_clock = Clock()
         result = mean_average_precision.compute()
+        if self.use_clock:
+            mean_average_precision_clock.stop_and_print('mean_average_precision.compute() took {} seconds')
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
@@ -269,6 +285,9 @@ class DefaultTrial(PyTorchTrial):
         class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)[0]
         for i, cls_max_prob in enumerate(class_max_probs):
             result['cls{}_max_prob'.format(i)] = cls_max_prob
+
+        if self.use_clock:
+            eval_clock.stop_and_print('evaluate_full_dataset() took {} seconds')
 
         return result
 

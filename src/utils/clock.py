@@ -3,13 +3,17 @@ import time
 
 class Clock:
     def __init__(self):
-        self.start_time = time.clock()
+        self.start_time = Clock._get_now()
+
+    @staticmethod
+    def _get_now() -> float:
+        return time.perf_counter()
 
     def start(self):
-        self.start_time = time.clock()
+        self.start_time = Clock._get_now()
 
     def stop(self):
-        now = time.clock()
+        now = Clock._get_now()
         duration = now - self.start_time
         self.start_time = now
         return duration

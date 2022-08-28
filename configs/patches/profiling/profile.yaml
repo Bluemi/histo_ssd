@@ -1,0 +1,7 @@
+profiling:
+  enabled: true
+  begin_on_batch: 0
+  end_after_batch: 200
+  sync_timings: true
+hyperparameters:
+  use_clock: true
