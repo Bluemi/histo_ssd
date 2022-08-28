@@ -87,7 +87,6 @@ class DefaultTrial(PyTorchTrial):
         :return: Tuple with (train_dataset, validation_dataset)
         """
         dataset_name = self.context.get_hparam('dataset')
-        split_size = self.context.get_hparam('dataset_split_size')
         image_size = self.context.get_hparams().get('image_size', 224)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
 
@@ -100,6 +99,7 @@ class DefaultTrial(PyTorchTrial):
                 show_progress=False,
                 force_one_class=force_one_class,
             )
+            split_size = self.context.get_hparam('dataset_split_size')
             datasets = dataset.split(split_size)
         elif dataset_name == 'banana':
             dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
