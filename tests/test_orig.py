@@ -11,6 +11,7 @@ from pprint import pprint
 
 from datasets import LizardDetectionDataset
 from datasets.banana_dataset import load_data_bananas
+from utils.clock import Clock
 from utils.metrics import update_mean_average_precision, calc_loss, cls_eval, bbox_eval
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
@@ -18,9 +19,9 @@ from utils.funcs import draw_boxes
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
-# DATASET = 'lizard'
+DATASET = 'lizard'
 
-MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
+MODEL_LOAD_PATH = '../models/{}_model1.pth'.format(DATASET)
 # MODEL_LOAD_PATH = None
 
 if DATASET == 'banana':
@@ -31,7 +32,7 @@ else:
     raise ValueError('Unknown dataset: {}'.format(DATASET))
 
 
-batch_size = 32
+batch_size = 64
 if DATASET == 'banana':
     train_iter, val_iter = load_data_bananas('../data/banana-detection', batch_size)
 elif DATASET == 'lizard':
@@ -109,7 +110,7 @@ else:
 
 mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
-do_display = True
+do_display = False
 
 net.eval()
 for batch in val_iter:
@@ -117,7 +118,9 @@ for batch in val_iter:
     ground_truth_boxes = batch['boxes']
 
     anchors, cls_preds, bbox_preds = net(images)
+    predict_clock = Clock()
     batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0)
+    predict_clock.stop_and_print('predict took {} seconds')
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 
@@ -146,5 +149,7 @@ for batch in val_iter:
                 do_display = False
                 break
 
+mean_average_precision_clock = Clock()
 mean_ap = mean_average_precision.compute()
+mean_average_precision_clock.stop_and_print('map.compute() took {} seconds')
 pprint(mean_ap)

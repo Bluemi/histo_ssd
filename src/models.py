@@ -9,7 +9,6 @@ from torch.hub import load_state_dict_from_url
 
 from utils.bounding_boxes import create_anchor_boxes, multibox_detection
 
-
 RELU_INPLACE = False
 
 KEY_MAPPING = OrderedDict([
