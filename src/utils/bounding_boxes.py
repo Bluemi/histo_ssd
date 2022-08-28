@@ -320,7 +320,7 @@ def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_thres
         iou = intersection_over_union(boxes[i, :].reshape(-1, 4), boxes[b[1:], :].reshape(-1, 4)).reshape(-1)
         indices = torch.nonzero(iou <= iou_threshold).reshape(-1)
         b = b[indices + 1]
-    return torch.tensor(keep, device=boxes.device)
+    return torch.tensor(keep, device=boxes.device, dtype=torch.int64)
 
 
 def multibox_detection(
@@ -363,7 +363,7 @@ def multibox_detection(
         all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)
         combined = torch.cat((keep, all_idx))
         uniques, counts = combined.unique(return_counts=True)
-        non_keep = uniques[counts == 1]
+        non_keep: torch.Tensor = uniques[counts == 1]
         all_id_sorted = torch.cat((keep, non_keep))
         class_id[non_keep] = -1
         class_id = class_id[all_id_sorted]

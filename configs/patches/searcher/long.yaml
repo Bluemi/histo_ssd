@@ -2,7 +2,7 @@ variables:
   description:
     action: "- Test Long"
 min_validation_period:
-  batches: 2000
+  batches: 400
 searcher:
   max_length:
     batches: 12000

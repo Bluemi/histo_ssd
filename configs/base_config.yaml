@@ -4,7 +4,7 @@ hyperparameters:
   global_batch_size: 64
   num_workers: 8
   optimizer: "sgd"
-  learning_rate: 0.08
+  learning_rate: 0.1
   l2_regularization: 1e-5
   momentum: 0.9
   hnm_norm_per_batch: true

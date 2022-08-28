@@ -19,7 +19,7 @@ from utils.funcs import draw_boxes, debug
 
 DISPLAY_GROUND_TRUTH = True
 DATASET = 'banana'
-# DATASET = 'lizard'
+DATASET = 'lizard'
 
 MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
 # MODEL_LOAD_PATH = None
@@ -38,8 +38,8 @@ if DATASET == 'banana':
 elif DATASET == 'lizard':
     dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
-        image_size=np.array([224, 224]),
-        image_stride=np.array([224, 224]),
+        image_size=np.array([256, 256]),
+        image_stride=np.array([256, 256]),
         use_cache=True,
         show_progress=True,
         force_one_class=True,
@@ -110,7 +110,7 @@ else:
 
 mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
 
-do_display = True
+do_display = False
 
 net.eval()
 for batch in val_iter:
