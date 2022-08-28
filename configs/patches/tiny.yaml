@@ -4,3 +4,4 @@ variables:
 hyperparameters:
   backbone_arch: "tiny"
   image_size: 256
+  pretrained: false

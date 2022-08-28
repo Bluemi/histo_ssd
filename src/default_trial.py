@@ -41,7 +41,7 @@ class DefaultTrial(PyTorchTrial):
         backbone_arch = self.context.get_hparam('backbone_arch')
         smin = self.context.get_hparams().get('min_anchor_size', 0.2)
         smax = self.context.get_hparams().get('max_anchor_size', 0.9)
-        self.pretrained = self.context.get_hparam('pretrained')
+        self.pretrained = self.context.get_hparams().get('pretrained', False)
         self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
 
         if self.pretrained:
