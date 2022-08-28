@@ -247,16 +247,25 @@ class DefaultTrial(PyTorchTrial):
         bbox_loss = None
         go_through_dataset_clock = Clock()
         for batch in data_loader:
+            forward_pass_clock = Clock()
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
+            if self.use_clock:
+                forward_pass_clock.stop_and_print('forward pass took {} seconds')
 
+            multibox_target_clock = Clock()
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
             cls_loss, bbox_loss = calc_cls_bbox_loss(
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
             )
             loss = (cls_loss + bbox_loss).mean()
             losses.append(loss)
+            if self.use_clock:
+                multibox_target_clock.stop_and_print('multibox() and calc_loss() took {} seconds')
 
+            predict_clock = Clock()
             batch_output = predict(anchors, cls_preds, bbox_preds)
+            if self.use_clock:
+                predict_clock.stop_and_print('predict took {} seconds')
 
             update_mean_average_precision_clock = Clock()
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
