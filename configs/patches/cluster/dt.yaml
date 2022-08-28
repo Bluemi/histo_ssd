@@ -2,3 +2,5 @@ resources:
   agent_label: dt-cluster
   max_slots: 6
   slots_per_trial: 1
+hyperparameters:
+  global_batch_size: 32

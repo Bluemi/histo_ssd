@@ -1,9 +1,9 @@
 variables:
   description:
-    action: "- learningrate-hopt"
+    action: "- hparam-hopt"
 hyperparameters:
   learning_rate:
     type: log
     maxval: 0
-    minval: -3
+    minval: -4
     base: 10

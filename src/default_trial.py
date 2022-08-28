@@ -254,8 +254,9 @@ class DefaultTrial(PyTorchTrial):
 
             multibox_target_clock = Clock()
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
+            # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
-                cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio
+                cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0
             )
             loss = (cls_loss + bbox_loss).mean()
             losses.append(loss)

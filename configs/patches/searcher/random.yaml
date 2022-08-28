@@ -1,7 +1,5 @@
 searcher:
   name: random
-  metric: map
   max_length:
     batches: 3000
-  smaller_is_better: false
   max_trials: 20

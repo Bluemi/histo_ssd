@@ -1,0 +1,3 @@
+searcher:
+  metric: map
+  smaller_is_better: false

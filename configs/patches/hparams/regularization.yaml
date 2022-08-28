@@ -1,0 +1,5 @@
+hyperparameters:
+  l2_regularization:
+    type: double
+    minval: 1e-6
+    maxval: 1e-3
