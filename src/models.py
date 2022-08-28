@@ -567,7 +567,7 @@ def predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0) -> List[to
     """
     # anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = multibox_detection(cls_probs, bbox_preds, anchors)
+    output = multibox_detection(cls_probs, bbox_preds, anchors, pos_threshold=0.2)
 
     # filter out background and low confidences
     result = []

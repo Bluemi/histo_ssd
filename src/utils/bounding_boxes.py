@@ -326,7 +326,7 @@ def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_thres
 def multibox_detection(
         cls_probs: torch.Tensor, offset_preds: torch.Tensor, anchors: torch.Tensor, nms_threshold: float = 0.5,
         pos_threshold: float = 0.009999999
-) -> torch.Tensor:
+) -> List[torch.Tensor]:
     """
     Predict bounding boxes using non-maximum suppression.
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
@@ -343,13 +343,22 @@ def multibox_detection(
     """
     device, batch_size = cls_probs.device, cls_probs.shape[0]
     anchors = anchors.squeeze(0)
-    num_classes, num_anchors = cls_probs.shape[1], cls_probs.shape[2]
     out = []
     for i in range(batch_size):
         cls_prob, offset_pred = cls_probs[i], offset_preds[i].reshape(-1, 4)
         conf, class_id = torch.max(cls_prob[1:], 0)
-        predicted_bb = offset_inverse(anchors, offset_pred)
+
+        # sort out all anchor box samples with conf <= pos_threshold
+        pos_conf_indices = conf > pos_threshold
+        conf = conf[pos_conf_indices]
+        class_id = class_id[pos_conf_indices]
+        filtered_anchors = anchors[pos_conf_indices]
+        offset_pred = offset_pred[pos_conf_indices]
+        num_anchors = filtered_anchors.shape[0]
+
+        predicted_bb = offset_inverse(filtered_anchors, offset_pred)
         keep = non_maximum_suppression(predicted_bb, conf, nms_threshold)
+
         # Find all non-`keep` indices and set the class to background
         all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)
         combined = torch.cat((keep, all_idx))
@@ -360,9 +369,9 @@ def multibox_detection(
         class_id = class_id[all_id_sorted]
         conf, predicted_bb = conf[all_id_sorted], predicted_bb[all_id_sorted]
         # Here `pos_threshold` is a threshold for positive (non-background) predictions
-        below_min_idx = (conf < pos_threshold)
-        class_id[below_min_idx] = -1
-        conf[below_min_idx] = 1 - conf[below_min_idx]
+        # below_min_idx = (conf < pos_threshold)
+        # class_id[below_min_idx] = -1
+        # conf[below_min_idx] = 1 - conf[below_min_idx]
         pred_info = torch.cat((class_id.unsqueeze(1), conf.unsqueeze(1), predicted_bb), dim=1)
         out.append(pred_info)
-    return torch.stack(out)
+    return out
