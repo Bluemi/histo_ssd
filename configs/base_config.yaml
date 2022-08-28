@@ -12,6 +12,7 @@ hyperparameters:
   image_prediction_max_images: 0
   negative_ratio: 3.0
   augmentation_stack: "minimal"
+  enable_class_metrics: false
 min_validation_period:
   batches: 200
 searcher:

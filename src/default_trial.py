@@ -43,6 +43,7 @@ class DefaultTrial(PyTorchTrial):
         smax = self.context.get_hparams().get('max_anchor_size', 0.9)
         self.pretrained = self.context.get_hparams().get('pretrained', False)
         self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
+        self.enable_class_metrics = self.context.get_hparams().get('enable_class_metrics', False)
 
         if self.pretrained:
             model = SSDModel.from_state_dict(
@@ -230,7 +231,7 @@ class DefaultTrial(PyTorchTrial):
         batch_idx = self.context._current_batch_idx + 1
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
 
-        mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)  # TODO: maybe disable class_metrics for better performance
+        mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=self.enable_class_metrics)
 
         image_counter = 0
         losses = []
