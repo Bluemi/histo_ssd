@@ -303,8 +303,8 @@ class DefaultTrial(PyTorchTrial):
 
     def build_training_data_loader(self) -> DataLoader:
         # augmentation
-        augmentation_stack = self.context.get_hparams().get('augmentation_stack')
-        if augmentation_stack is None:
+        augmentation_stack = self.context.get_hparams().get('augmentation_stack', 'none')
+        if augmentation_stack == 'none':
             dataset = self.train_dataset
         elif augmentation_stack == 'minimal':
             # noinspection PyUnresolvedReferences
