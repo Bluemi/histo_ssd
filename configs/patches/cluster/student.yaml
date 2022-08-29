@@ -1,0 +1,6 @@
+resources:
+  agent_label: student-cluster
+  max_slots: 2
+  slots_per_trial: 1
+hyperparameters:
+  global_batch_size: 32

@@ -1,2 +1,5 @@
+variables:
+  description:
+    action: "- force one class"
 hyperparameters:
   force_one_class: true
