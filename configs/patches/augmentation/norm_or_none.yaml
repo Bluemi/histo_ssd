@@ -1,0 +1,5 @@
+hyperparameters:
+  augmentation_stack:
+    type: "categorical"
+    vals: ["minimal", null]
+

@@ -232,6 +232,7 @@ class LizardDetectionDataset(Dataset):
                 image_size=self.image_size,
                 max_boxes_per_snapshot=self.max_boxes_per_snapshot,
                 image_cache=self.image_cache,
+                force_one_class=self.force_one_class,
             ),
             LizardDetectionDataset(
                 snapshots=second_set,
@@ -239,6 +240,7 @@ class LizardDetectionDataset(Dataset):
                 image_size=self.image_size,
                 max_boxes_per_snapshot=self.max_boxes_per_snapshot,
                 image_cache=self.image_cache,
+                force_one_class=self.force_one_class,
             ),
         )
 
