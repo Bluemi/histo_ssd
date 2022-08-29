@@ -75,7 +75,7 @@ def calc_loss(
 
 def calc_cls_bbox_loss(
         cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
-        normalize_per_batch: bool = True
+        normalize_per_batch: bool = True, use_smooth_l1: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Calculates a loss value from class predictions and bounding box regression.
@@ -91,10 +91,14 @@ def calc_cls_bbox_loss(
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
     :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample.
+    :param use_smooth_l1: Whether to use smoothed version of l1 loss
     :return: A tuple [class_loss, bbox_loss] each with shape [BATCHSIZE].
     """
     cls_loss = nn.CrossEntropyLoss(reduction='none')
-    bbox_loss = nn.L1Loss(reduction='none')
+    if use_smooth_l1:
+        bbox_loss = nn.SmoothL1Loss(reduction='none')
+    else:
+        bbox_loss = nn.L1Loss(reduction='none')
 
     batch_size, num_anchors, num_classes = cls_preds.shape
     cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1)
