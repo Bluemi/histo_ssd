@@ -343,7 +343,7 @@ class LizardDetectionDataset(Dataset):
         assert (class_labels < len(LABELS)).all()
 
         if self.force_one_class:
-            class_labels.fill_(0)  # always state class 0
+            class_labels.fill(0)  # always state class 0
 
         # convert from tlbr to ltrb
         indices = torch.LongTensor([1, 0, 3, 2])
