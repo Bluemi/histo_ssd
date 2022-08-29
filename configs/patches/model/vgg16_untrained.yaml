@@ -1,0 +1,7 @@
+variables:
+  description:
+    network_arch: "VGG16(untrained)"
+hyperparameters:
+  backbone_arch: "vgg16"
+  image_size: 300
+  pretrained: false
