@@ -329,10 +329,11 @@ class DefaultTrial(PyTorchTrial):
         )
 
     def build_validation_data_loader(self) -> DataLoader:
+        shuffle_validation = self.context.get_hparams().get('shuffle_validation', False)
         return DataLoader(
             self.validation_dataset,
             batch_size=self.context.get_per_slot_batch_size(),
-            shuffle=False,  # set to True, to see different images in Tensorboard
+            shuffle=shuffle_validation,  # set to True, to see different images in Tensorboard
             num_workers=self.context.get_hparam('num_workers'),
             pin_memory=True
         )

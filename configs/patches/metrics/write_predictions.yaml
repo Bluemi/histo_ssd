@@ -1,0 +1,4 @@
+hyperparameters:
+  image_prediction_score_threshold: 0.2
+  image_prediction_max_images: 5
+  shuffle_validation: true
