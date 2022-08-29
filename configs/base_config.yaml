@@ -14,6 +14,7 @@ hyperparameters:
   augmentation_stack: "minimal"
   enable_class_metrics: false
   use_clock: false
+  use_smooth_l1: true
 min_validation_period:
   batches: 200
 searcher:

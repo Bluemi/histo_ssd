@@ -49,7 +49,7 @@ def update_mean_average_precision(
 
 def calc_loss(
         cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
-        normalize_per_batch: bool = True
+        normalize_per_batch: bool = True, use_smooth_l1: bool = True,
 ) -> torch.Tensor:
     """
     Calculates a loss value from class predictions and bounding box regression.
@@ -65,10 +65,11 @@ def calc_loss(
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
     :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample
+    :param use_smooth_l1: Whether to use smoothed version of l1 loss
     :return: A single loss value
     """
     cls_loss, bbox_loss = calc_cls_bbox_loss(
-        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio, normalize_per_batch
+        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio, normalize_per_batch, use_smooth_l1
     )
     return (cls_loss + bbox_loss).mean()
 

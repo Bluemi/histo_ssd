@@ -1,0 +1,4 @@
+hyperparameters:
+  use_smooth_l1:
+    type: categorical
+    vals: [true, false]

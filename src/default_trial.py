@@ -33,6 +33,7 @@ class DefaultTrial(PyTorchTrial):
         self.num_classes = self._get_num_classes()
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
         self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
+        self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
         assert isinstance(self.normalize_per_batch, bool)
 
         if self.negative_ratio is None:
@@ -159,7 +160,7 @@ class DefaultTrial(PyTorchTrial):
         bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
         cls_loss, bbox_loss = calc_cls_bbox_loss(
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
-            normalize_per_batch=self.normalize_per_batch
+            normalize_per_batch=self.normalize_per_batch, use_smooth_l1=self.use_smooth_l1,
         )
         loss = (cls_loss + bbox_loss).mean()
         self.context.backward(loss)
@@ -256,7 +257,8 @@ class DefaultTrial(PyTorchTrial):
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
             # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
-                cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0
+                cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
+                use_smooth_l1=self.use_smooth_l1,
             )
             loss = (cls_loss + bbox_loss).mean()
             losses.append(loss)
