@@ -19,11 +19,11 @@ elif MODEL == 'vgg16':
     NUM_BOXES_PER_PIXEL = 4
     IMAGE_SIZE = 300
 BATCH_SIZE = 1
-VERBOSE = False
+VERBOSE = True
 
 
 def main():
-    model = SSDModel(num_classes=1, debug=VERBOSE, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
+    model = SSDModel(num_classes=1, debug=False, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
 
     model.eval()
 
