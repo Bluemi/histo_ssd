@@ -5,7 +5,7 @@ TODO: rework transform bounding box
 """
 import random
 from pathlib import Path
-from typing import List, Dict, Any, Tuple, Callable
+from typing import List, Dict, Any, Tuple, Callable, Optional
 
 import scipy.io as sio
 import numpy as np
@@ -92,7 +92,7 @@ class LizardDetectionDataset(Dataset):
     @staticmethod
     def from_datadir(
         data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
-        show_progress: bool = False, force_one_class: bool = False,
+        show_progress: bool = False, force_one_class: bool = False, ignore_classes: Optional[List[int]] = None
     ):
         """
         Args:
@@ -103,13 +103,20 @@ class LizardDetectionDataset(Dataset):
             use_cache: Whether to keep loaded images in memory. Defaults to False.
             show_progress: Whether to show loading progress with tqdm
             force_one_class: Always return class 0 as label
+            ignore_classes: A list of class indices that should not be suppressed in the output of the dataset.
         """
+        assert not (force_one_class and ignore_classes), 'Options force_one_class and ignore_classes are incompatible'
+        if ignore_classes is None:
+            ignore_classes = []
         # use image size as image stride, if no images stride provided
         image_stride = image_size if image_stride is None else image_stride
-        snapshots = LizardDetectionDataset._define_snapshots(data_dir, image_size, image_stride, show_progress)
+        snapshots = LizardDetectionDataset._define_snapshots(
+            data_dir, image_size, image_stride, show_progress, ignore_classes
+        )
         max_boxes_per_snapshot = 0
         for snapshot in snapshots:
             max_boxes_per_snapshot = max(snapshot.bounding_boxes.shape[0], max_boxes_per_snapshot)
+
         return LizardDetectionDataset(
             snapshots=snapshots,
             data_dir=data_dir,
@@ -122,7 +129,7 @@ class LizardDetectionDataset(Dataset):
     @staticmethod
     def from_avocado(
             image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
-            show_progress: bool = False, force_one_class: bool = False,
+            show_progress: bool = False, force_one_class: bool = False, ignore_classes: Optional[List[int]] = None
     ):
         """
         Args:
@@ -130,6 +137,7 @@ class LizardDetectionDataset(Dataset):
             image_stride: The stride between the images returned by __getitem__ as [y, x]. Defaults to <image_size>
             use_cache: Whether to keep loaded images in memory. Defaults to False.
             force_one_class: If set to True, will always give class 0 as class label
+            ignore_classes: A list of class indices that should not be suppressed in the output of the dataset.
         """
         return LizardDetectionDataset.from_datadir(
             data_dir=AVOCADO_DATASET_LOCATION,
@@ -138,11 +146,12 @@ class LizardDetectionDataset(Dataset):
             use_cache=use_cache,
             show_progress=show_progress,
             force_one_class=force_one_class,
+            ignore_classes=ignore_classes,
         )
 
     @staticmethod
     def _define_snapshots(
-            data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray, show_progress: bool
+            data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray, show_progress: bool, ignore_classes,
     ) -> List[Snapshot]:
         """
         Returns a list of snapshots to use for this dataset. Images will be searched in '<data_dir>/images1/*.png' and
@@ -156,14 +165,16 @@ class LizardDetectionDataset(Dataset):
         progress_function = get_progress_func(show_progress)
         for image_file in progress_function(image_files, desc='Loading Dataset: '):
             subimages.extend(
-                LizardDetectionDataset._snapshots_from_image_file(data_dir, image_file, image_size, image_stride)
+                LizardDetectionDataset._snapshots_from_image_file(
+                    data_dir, image_file, image_size, image_stride, ignore_classes
+                )
             )
 
         return subimages
 
     @staticmethod
     def _snapshots_from_image_file(
-            data_dir: Path, filename: Path, image_size: np.ndarray, image_stride: np.ndarray
+            data_dir: Path, filename: Path, image_size: np.ndarray, image_stride: np.ndarray, ignore_classes
     ) -> List[Snapshot]:
         with Image.open(filename) as image:
             width, height = image.size
@@ -175,6 +186,11 @@ class LizardDetectionDataset(Dataset):
 
         all_label_data = LizardDetectionDataset._load_all_label_data(data_dir, sample_name)
 
+        # maps class labels to new class labels
+        label_map = list(range(100))
+        for ignore_class in sorted(ignore_classes, reverse=False):
+            label_map.insert(ignore_class, None)
+
         # iterate as long as right-bottom corner of subimage is in bounds of full_image_size
         while (position + image_size <= full_image_size).all():
             # filter relevant label data
@@ -182,9 +198,12 @@ class LizardDetectionDataset(Dataset):
             class_labels = []
             for label, bounding_box in all_label_data:
                 if LizardDetectionDataset._bounding_box_in_snapshot(position, image_size, bounding_box):
-                    transformed_bounding_box = LizardDetectionDataset._transform_bounding_box(bounding_box, position)
-                    bounding_boxes.append(transformed_bounding_box)
-                    class_labels.append(label - 1)  # labels to 0 - 5
+                    this_label = label - 1  # labels to 0 - 5
+                    if this_label not in ignore_classes:
+                        this_label = label_map[this_label]  # remap after ignore classes
+                        class_labels.append(this_label)
+                        transformed_bbox = LizardDetectionDataset._transform_bounding_box(bounding_box, position)
+                        bounding_boxes.append(transformed_bbox)
 
             if bounding_boxes:
                 bounding_boxes = np.array(bounding_boxes, dtype=np.float32)

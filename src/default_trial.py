@@ -93,6 +93,9 @@ class DefaultTrial(PyTorchTrial):
         if isinstance(image_stride, float):
             image_stride = round(image_size * image_stride)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
+        ignore_classes = self.context.get_hparams().get('ignore_classes')
+        if ignore_classes is not None:
+            ignore_classes = list(map(int, ignore_classes.split(',')))
 
         print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
         if dataset_name == 'lizard':
@@ -102,6 +105,7 @@ class DefaultTrial(PyTorchTrial):
                 use_cache=True,
                 show_progress=False,
                 force_one_class=force_one_class,
+                ignore_classes=ignore_classes,
             )
             split_size = self.context.get_hparam('dataset_split_size')
             datasets = dataset.split(split_size)
