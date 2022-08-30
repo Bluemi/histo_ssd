@@ -30,7 +30,6 @@ class DefaultTrial(PyTorchTrial):
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
-        self.num_classes = self._get_num_classes()
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
         self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
         self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
@@ -47,6 +46,11 @@ class DefaultTrial(PyTorchTrial):
         self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
         self.enable_class_metrics = self.context.get_hparams().get('enable_class_metrics', False)
         self.use_clock = self.context.get_hparams().get('use_clock', False)
+        ignore_classes = self.context.get_hparams().get('ignore_classes')
+        if ignore_classes is not None:
+            ignore_classes = list(map(int, ignore_classes.split(',')))
+        self.ignore_classes = ignore_classes
+        self.num_classes = self._get_num_classes()
 
         if self.pretrained:
             model = SSDModel.from_state_dict(
@@ -93,9 +97,6 @@ class DefaultTrial(PyTorchTrial):
         if isinstance(image_stride, float):
             image_stride = round(image_size * image_stride)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
-        ignore_classes = self.context.get_hparams().get('ignore_classes')
-        if ignore_classes is not None:
-            ignore_classes = list(map(int, ignore_classes.split(',')))
 
         print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
         if dataset_name == 'lizard':
@@ -105,7 +106,7 @@ class DefaultTrial(PyTorchTrial):
                 use_cache=True,
                 show_progress=False,
                 force_one_class=force_one_class,
-                ignore_classes=ignore_classes,
+                ignore_classes=self.ignore_classes,
             )
             split_size = self.context.get_hparam('dataset_split_size')
             datasets = dataset.split(split_size)
@@ -139,7 +140,8 @@ class DefaultTrial(PyTorchTrial):
             if force_one_class:
                 return 1
             else:
-                return 6
+                num_removed_classes = 0 if self.ignore_classes is None else len(self.ignore_classes)
+                return 6 - num_removed_classes
         elif dataset_name == 'banana':
             return 1
         else:
