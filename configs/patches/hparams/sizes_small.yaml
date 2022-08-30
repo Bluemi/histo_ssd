@@ -9,4 +9,4 @@ hyperparameters:
   max_anchor_size:
     type: double
     maxval: 0.6
-    minval: 0.45
+    minval: 0.5
