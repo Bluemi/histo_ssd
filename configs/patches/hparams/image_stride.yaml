@@ -1,0 +1,5 @@
+hyperparameters:
+  image_stride:
+    type: double
+    minval: 0.2
+    maxval: 0.8

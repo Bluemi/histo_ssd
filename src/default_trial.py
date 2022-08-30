@@ -89,13 +89,16 @@ class DefaultTrial(PyTorchTrial):
         """
         dataset_name = self.context.get_hparam('dataset')
         image_size = self.context.get_hparams().get('image_size', 224)
+        image_stride = self.context.get_hparams().get('image_stride', image_size)
+        if isinstance(image_stride, float):
+            image_stride = round(image_size * image_stride)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
 
         print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
         if dataset_name == 'lizard':
             dataset = LizardDetectionDataset.from_avocado(
                 image_size=np.array([image_size, image_size]),
-                image_stride=np.array([image_size, image_size]),
+                image_stride=np.array([image_stride, image_stride]),
                 use_cache=True,
                 show_progress=False,
                 force_one_class=force_one_class,
