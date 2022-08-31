@@ -193,10 +193,6 @@ class DefaultTrial(PyTorchTrial):
         if loss.isnan().any():
             raise ValueError('Got NaN loss')
 
-        class_max_probs = DefaultTrial._get_max_class_probs(cls_preds)
-        for i, cls_max_prob in enumerate(class_max_probs):
-            result['cls{}_max_prob'.format(i)] = cls_max_prob
-
         if self.use_clock:
             train_batch_clock.stop_and_print('train_batch() took: {} seconds')
 
@@ -310,10 +306,6 @@ class DefaultTrial(PyTorchTrial):
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
         result['bbox_loss'] = torch.mean(bbox_loss)
-
-        class_max_probs = torch.max(torch.stack(all_max_class_probs), dim=0)[0]
-        for i, cls_max_prob in enumerate(class_max_probs):
-            result['cls{}_max_prob'.format(i)] = cls_max_prob
 
         if self.use_clock:
             eval_clock.stop_and_print('evaluate_full_dataset() took {} seconds')
