@@ -1,10 +1,10 @@
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 
 from torch.utils.data import Dataset
 
 
 class AugmentationWrapper(Dataset):
-    def __init__(self, dataset, transforms: List[Tuple[str, Any]]):
+    def __init__(self, dataset, transforms: List[Tuple[Optional[str], Any]]):
         """
         Creates a AugmentationWrapper dataset.
         :param dataset: The dataset to augment

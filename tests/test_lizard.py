@@ -8,12 +8,14 @@ import torch
 from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
+from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.lizard_detection import LizardDetectionDataset
+from utils.augmentations import RotateFlip
 from utils.clock import Clock
 from utils.funcs import debug, draw_boxes
 
 
-SHOW_IMAGE = False
+SHOW_IMAGE = True
 
 
 def main():
@@ -32,6 +34,13 @@ def main():
 
     debug(len(train))
     debug(len(validation))
+
+    dataset = AugmentationWrapper(
+        dataset,
+        [
+            (None, RotateFlip())
+        ]
+    )
 
     data_loader = DataLoader(dataset, batch_size=64)
 
