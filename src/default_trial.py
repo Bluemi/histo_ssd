@@ -33,6 +33,7 @@ class DefaultTrial(PyTorchTrial):
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
         self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
         self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
+        self.nms_threshold = self.context.get_hparams().get('nms_threshold', 0.5)
         assert isinstance(self.normalize_per_batch, bool)
 
         if self.negative_ratio is None:
@@ -275,7 +276,7 @@ class DefaultTrial(PyTorchTrial):
                 multibox_target_clock.stop_and_print('multibox() and calc_loss() took {} seconds')
 
             predict_clock = Clock()
-            batch_output = predict(anchors, cls_preds, bbox_preds)
+            batch_output = predict(anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold)
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 

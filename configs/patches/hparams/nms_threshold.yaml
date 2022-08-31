@@ -1,0 +1,5 @@
+hyperparameters:
+  nms_threshold:
+    type: double
+    minval: 0.3
+    maxval: 0.7

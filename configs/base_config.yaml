@@ -13,6 +13,7 @@ hyperparameters:
   negative_ratio: 3.0
   min_anchor_size: 0.055
   max_anchor_size: 0.54
+  nms_threshold: 0.5
   aug_norm: false
   aug_rotate: false
   aug_flip: false

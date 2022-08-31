@@ -554,20 +554,21 @@ class SSDModel(nn.Module):
         return anchors, cls_preds, bbox_preds
 
 
-def predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0) -> List[torch.Tensor]:
+def predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_threshold=0.5) -> List[torch.Tensor]:
     """
     Uses the given model to predict boxes for the given batch of images.
 
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#prediction
 
     :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
+    :param nms_threshold: The iou threshold to suppress overlapping predictions with non-maximum suppression.
 
     :return: A list with BATCH_SIZE entries. Each entry is a torch.Tensor with shape (NUM_PREDICTIONS, 6).
              Each entry of these tensors consists of (class_label, confidence, left, top, right, bottom).
     """
     # anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = multibox_detection(cls_probs, bbox_preds, anchors, pos_threshold=0.2)
+    output = multibox_detection(cls_probs, bbox_preds, anchors, nms_threshold=nms_threshold, pos_threshold=0.2)
 
     # filter out background and low confidences
     result = []
