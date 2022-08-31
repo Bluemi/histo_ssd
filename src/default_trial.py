@@ -28,18 +28,14 @@ class DefaultTrial(PyTorchTrial):
         super().__init__(context)
         self.context = context
 
-        # the dataset is loaded at the start to make it possible to split it
-        self.train_dataset, self.validation_dataset = self._load_dataset()
+        # set hyperparameters
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
-        self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
-        self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
-        self.nms_threshold = self.context.get_hparams().get('nms_threshold', 0.5)
-        assert isinstance(self.normalize_per_batch, bool)
-
         if self.negative_ratio is None:
             print('WARN: hard negative mining is disabled')
-
-        # create model
+        self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
+        assert isinstance(self.normalize_per_batch, bool)
+        self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
+        self.nms_threshold = self.context.get_hparams().get('nms_threshold', 0.5)
         backbone_arch = self.context.get_hparam('backbone_arch')
         smin = self.context.get_hparams().get('min_anchor_size', 0.2)
         smax = self.context.get_hparams().get('max_anchor_size', 0.9)
@@ -52,7 +48,12 @@ class DefaultTrial(PyTorchTrial):
             ignore_classes = list(map(int, ignore_classes.split(',')))
         self.ignore_classes = ignore_classes
         self.num_classes = self._get_num_classes()
+        optimizer_name = self.context.get_hparam('optimizer')
 
+        # the dataset is loaded at the start to make it possible to split it
+        self.train_dataset, self.validation_dataset = self._load_dataset()
+
+        # create model
         if self.pretrained:
             model = SSDModel.from_state_dict(
                 state_dict_path='DOWNLOAD', num_classes=self.num_classes, backbone_arch=backbone_arch,
@@ -63,10 +64,9 @@ class DefaultTrial(PyTorchTrial):
                 num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
             )
 
-        # pred layer
         self.model = self.context.wrap_model(model)
 
-        optimizer_name = self.context.get_hparam('optimizer')
+        # optimizer
         if optimizer_name == 'sgd':
             optimizer = torch.optim.SGD(
                 self.model.parameters(),
@@ -78,13 +78,15 @@ class DefaultTrial(PyTorchTrial):
             raise ValueError('Could not find optimizer "{}"'.format(optimizer_name))
         self.optimizer = self.context.wrap_optimizer(optimizer)
 
+        # scheduler
         scheduler = CosineAnnealingLR(
             self.optimizer,
             T_max=self.context.get_experiment_config()['searcher']['max_length']['batches']
         )
         self.scheduler = self.context.wrap_lr_scheduler(scheduler, LRScheduler.StepMode.STEP_EVERY_BATCH)
 
-        self.tblogger = TorchWriter()  # Tensorboard log
+        # tensorboard logger
+        self.tblogger = TorchWriter()
 
     def _load_dataset(self) -> Tuple[Dataset, Dataset]:
         """
