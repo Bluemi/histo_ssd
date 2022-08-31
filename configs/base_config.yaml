@@ -21,7 +21,7 @@ hyperparameters:
   use_clock: false
   use_smooth_l1: true
 min_validation_period:
-  batches: 200
+  batches: 600
 searcher:
   name: single
   metric: map

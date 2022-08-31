@@ -1,4 +1,5 @@
 import torch
+import torchvision
 from matplotlib import pyplot as plt
 
 from datasets.lizard_detection import imread
@@ -58,6 +59,11 @@ def main():
     plt.show()
 
 
+def test_torchvision():
+    model = torchvision.models.detection.ssd.ssd300_vgg16(num_classes=1, pretrained=False, pretrained_backbone=False)
+    print(model)
+
+
 def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
     level_add = 0
     for i in range(level):
@@ -76,4 +82,5 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    test_torchvision()
