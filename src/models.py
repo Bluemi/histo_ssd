@@ -554,7 +554,9 @@ class SSDModel(nn.Module):
         return anchors, cls_preds, bbox_preds
 
 
-def predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_threshold=0.5) -> List[torch.Tensor]:
+def predict(
+        anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_threshold=0.5, pos_threshold=0.2
+) -> List[torch.Tensor]:
     """
     Uses the given model to predict boxes for the given batch of images.
 
@@ -568,7 +570,9 @@ def predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_thresh
     """
     # anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = multibox_detection(cls_probs, bbox_preds, anchors, nms_threshold=nms_threshold, pos_threshold=0.2)
+    output = multibox_detection(
+        cls_probs, bbox_preds, anchors, nms_threshold=nms_threshold, pos_threshold=pos_threshold
+    )
 
     # filter out background and low confidences
     result = []

@@ -161,7 +161,6 @@ class DefaultTrial(PyTorchTrial):
     def train_batch(
         self, batch: TorchData, epoch_idx: int, batch_idx: int
     ) -> Dict[str, Any]:
-        train_batch_clock = Clock()
         image = batch['image']
         boxes = batch['boxes']
         self.optimizer.zero_grad()
@@ -192,9 +191,6 @@ class DefaultTrial(PyTorchTrial):
 
         if loss.isnan().any():
             raise ValueError('Got NaN loss')
-
-        if self.use_clock:
-            train_batch_clock.stop_and_print('train_batch() took: {} seconds')
 
         return result
 
@@ -261,12 +257,8 @@ class DefaultTrial(PyTorchTrial):
         bbox_loss = None
         go_through_dataset_clock = Clock()
         for batch in data_loader:
-            forward_pass_clock = Clock()
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
-            if self.use_clock:
-                forward_pass_clock.stop_and_print('forward pass took {} seconds')
 
-            multibox_target_clock = Clock()
             bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
             # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
@@ -275,18 +267,13 @@ class DefaultTrial(PyTorchTrial):
             )
             loss = (cls_loss + bbox_loss).mean()
             losses.append(loss)
-            if self.use_clock:
-                multibox_target_clock.stop_and_print('multibox() and calc_loss() took {} seconds')
 
             predict_clock = Clock()
-            batch_output = predict(anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold)
+            batch_output = predict(anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold, pos_threshold=0.5)
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 
-            update_mean_average_precision_clock = Clock()
             update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
-            if self.use_clock:
-                update_mean_average_precision_clock.stop_and_print('update_map() took {} seconds')
 
             max_class_probs = DefaultTrial._get_max_class_probs(cls_preds)
             all_max_class_probs.append(max_class_probs)
