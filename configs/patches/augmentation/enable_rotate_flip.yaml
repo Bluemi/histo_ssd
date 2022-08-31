@@ -1,0 +1,6 @@
+variables:
+  description:
+    augmentation: "rotate/flip augmentation"
+hyperparameters:
+  aug_rotate: true
+  aug_flip: true
