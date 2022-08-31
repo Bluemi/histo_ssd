@@ -4,6 +4,6 @@ variables:
 hyperparameters:
   learning_rate:
     type: log
-    maxval: -5
+    maxval: -4
     minval: -7
     base: 2

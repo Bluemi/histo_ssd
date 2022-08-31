@@ -2,4 +2,4 @@ hyperparameters:
   negative_ratio:
     type: double
     minval: 2.0
-    maxval: 4.0
+    maxval: 6.0

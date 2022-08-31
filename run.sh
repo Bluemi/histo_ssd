@@ -20,8 +20,13 @@ case "$1" in
 	b)
 		PYTHONPATH=./src ipython ./tests/test_banana.py
 		;;
-	d|data)
-		PYTHONPATH=./src python3 ./tests/test_datasets.py
+	d|default)
+		shift
+		if [ "$1" == "--dry" ]; then
+			dry='--dry'
+			shift
+		fi
+		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" p/augmentation/test_rotate_flip.yaml p/cluster/pepper.yaml p/dataset/lizard.yaml p/hparams/lr_narrow.yaml p/hparams/negative_ratio_narrow.yaml p/hparams/image_stride.yaml p/hparams/smoothl1.yaml p/metrics/loss.yaml p/metrics/write_predictions.yaml p/model/vgg16.yaml p/searcher/random.yaml
 		;;
 	o|orig)
 		PYTHONPATH=./src python3 ./tests/test_orig.py
