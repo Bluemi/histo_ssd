@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.lizard_detection import LizardDetectionDataset
-from utils.augmentations import RotateFlip
+from utils.augmentations import RandomRotate, RandomFlip
 from utils.clock import Clock
 from utils.funcs import debug, draw_boxes
 
@@ -38,7 +38,8 @@ def main():
     dataset = AugmentationWrapper(
         dataset,
         [
-            (None, RotateFlip())
+            (None, RandomRotate()),
+            (None, RandomFlip())
         ]
     )
 
