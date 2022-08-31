@@ -1,0 +1,8 @@
+variables:
+  description:
+    augmentation: "normalization augmentation"
+hyperparameters:
+  aug_norm:
+    type: categorical
+    vals: [true, false]
+

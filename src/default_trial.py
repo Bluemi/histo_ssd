@@ -5,7 +5,6 @@ import torchvision
 import torch.nn.functional as functional
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
-from torchvision import transforms
 from torchmetrics.detection import MeanAveragePrecision
 from determined.pytorch import PyTorchTrial, PyTorchTrialContext, LRScheduler, TorchData, DataLoader
 from determined.tensorboard.metric_writers.pytorch import TorchWriter
@@ -19,6 +18,7 @@ from utils.bounding_boxes import multibox_target
 from utils.clock import Clock
 from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
+from utils.augmentations import RandomRotate, RandomFlip
 
 DEFAULT_WARMUP_BATCHES = 300
 
@@ -314,20 +314,31 @@ class DefaultTrial(PyTorchTrial):
 
     def build_training_data_loader(self) -> DataLoader:
         # augmentation
-        augmentation_stack = self.context.get_hparams().get('augmentation_stack', 'none')
-        if augmentation_stack == 'none':
-            dataset = self.train_dataset
-        elif augmentation_stack == 'minimal':
+        transforms = []
+        use_normalization = self.context.get_hparams().get('aug_norm', False)
+        if use_normalization:
             # noinspection PyUnresolvedReferences
             mean, std = self.train_dataset.normalization_values()
-            dataset = AugmentationWrapper(
-                self.train_dataset,
-                [
-                    ('image', transforms.Normalize(mean, std))
-                ]
+            transforms.append(
+                ('image', torchvision.transforms.Normalize(mean, std))
             )
-        else:
-            raise ValueError('Unknown augmentation stack: {}'.format(augmentation_stack))
+
+        use_rotate = self.context.get_hparams().get('aug_rotate', False)
+        if use_rotate:
+            transforms.append(
+                (None, RandomRotate())
+            )
+
+        use_flip = self.context.get_hparams().get('aug_flip', False)
+        if use_flip:
+            transforms.append(
+                (None, RandomFlip())
+            )
+
+        dataset = AugmentationWrapper(
+            self.train_dataset,
+            transforms,
+        )
 
         return DataLoader(
             dataset,

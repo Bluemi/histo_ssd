@@ -1,0 +1,11 @@
+variables:
+  description:
+    augmentation: "rotate/flip augmentation"
+hyperparameters:
+  aug_rotate:
+    type: categorical
+    vals: [true, false]
+  aug_flip:
+    type: categorical
+    vals: [true, false]
+
