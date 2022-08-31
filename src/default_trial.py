@@ -21,6 +21,7 @@ from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
 DEFAULT_WARMUP_BATCHES = 300
+WRITE_PREDICTIONS_BATCH = 2500
 
 
 class DefaultTrial(PyTorchTrial):
@@ -49,6 +50,7 @@ class DefaultTrial(PyTorchTrial):
         self.ignore_classes = ignore_classes
         self.num_classes = self._get_num_classes()
         optimizer_name = self.context.get_hparam('optimizer')
+        self.enable_write_predictions = False
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -163,6 +165,9 @@ class DefaultTrial(PyTorchTrial):
         image = batch['image']
         boxes = batch['boxes']
         self.optimizer.zero_grad()
+
+        if batch_idx > WRITE_PREDICTIONS_BATCH:
+            self.enable_write_predictions = True
 
         if self.pretrained and batch_idx >= self.warmup_batches:
             self.model.unfreeze()
@@ -291,7 +296,7 @@ class DefaultTrial(PyTorchTrial):
             all_max_class_probs.append(max_class_probs)
 
             # write prediction images
-            if image_counter < image_prediction_max_images:
+            if self.enable_write_predictions and image_counter < image_prediction_max_images:
                 image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
         if self.use_clock:
             go_through_dataset_clock.stop_and_print('predict dataset took {} seconds')
