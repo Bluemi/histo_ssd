@@ -15,8 +15,8 @@ hyperparameters:
   max_anchor_size: 0.54
   nms_threshold: 0.5
   aug_norm: false
-  aug_rotate: false
-  aug_flip: false
+  aug_rotate: true
+  aug_flip: true
   enable_class_metrics: false
   use_clock: false
   use_smooth_l1: true
