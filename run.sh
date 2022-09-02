@@ -48,6 +48,9 @@ case "$1" in
 	g|gpu)
 		PYTHONPATH=./src python3 ./tests/test_gpu.py
 		;;
+	pr)
+		PYTHONPATH=./src python3 ./tests/test_prcurve.py
+		;;
 	*)
 		echo "invalid run option"
 		;;
