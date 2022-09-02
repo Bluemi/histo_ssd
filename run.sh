@@ -32,9 +32,10 @@ case "$1" in
 			p/dataset/ignore_rare_classes.yaml \
 			p/hparams/lr_narrow.yaml \
 			p/hparams/sizes_small.yaml \
-			p/metrics/map.yaml \
+			p/metrics/loss.yaml \
 			p/metrics/write_predictions.yaml \
 			p/model/vgg16.yaml \
+			p/save_checkpoints.yaml \
 			p/searcher/adaptive_asha.yaml
 			# p/augmentation/test_rotate_flip.yaml \
 			# p/searcher/random.yaml \
@@ -42,6 +43,7 @@ case "$1" in
 			# p/hparams/image_stride.yaml \
 			# p/hparams/smoothl1.yaml \
 			# p/hparams/nms_threshold.yaml \
+			# p/metrics/map.yaml \
 		;;
 	o|orig)
 		PYTHONPATH=./src python3 ./tests/test_orig.py
