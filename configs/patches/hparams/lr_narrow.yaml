@@ -5,5 +5,5 @@ hyperparameters:
   learning_rate:
     type: double
     minval: 0.02
-    maxval: 0.035
+    maxval: 0.03
     base: 2

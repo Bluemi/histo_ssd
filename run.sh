@@ -31,6 +31,7 @@ case "$1" in
 			p/dataset/lizard.yaml \
 			p/dataset/ignore_rare_classes.yaml \
 			p/hparams/lr_narrow.yaml \
+			p/hparams/sizes_small.yaml \
 			p/metrics/map.yaml \
 			p/metrics/write_predictions.yaml \
 			p/model/vgg16.yaml \

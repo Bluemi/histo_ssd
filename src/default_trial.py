@@ -21,7 +21,7 @@ from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
 DEFAULT_WARMUP_BATCHES = 300
-WRITE_PREDICTIONS_BATCH = 2500
+WRITE_PREDICTIONS_BATCH = 2900
 
 
 class DefaultTrial(PyTorchTrial):

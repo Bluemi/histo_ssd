@@ -24,7 +24,7 @@ hyperparameters:
 workspace: MastersthesisBruno
 project: SSD
 min_validation_period:
-  batches: 500
+  batches: 300
 searcher:
   name: single
   metric: map
