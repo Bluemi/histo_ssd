@@ -6,4 +6,3 @@ hyperparameters:
     type: double
     minval: 0.02
     maxval: 0.03
-    base: 2
