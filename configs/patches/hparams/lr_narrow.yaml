@@ -3,7 +3,7 @@ variables:
     action: "- hparam-hopt"
 hyperparameters:
   learning_rate:
-    type: log
-    maxval: -5
-    minval: -7
+    type: double
+    minval: 0.02
+    maxval: 0.035
     base: 2

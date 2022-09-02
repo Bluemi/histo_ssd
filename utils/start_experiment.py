@@ -44,7 +44,12 @@ def main():
     args = parse_args()
     experiment_config = yaml.load(args.config)
 
-    variables = {}
+    variables = {
+        'description': {
+            'augmentation': 'no augmentation',
+            'action': 'test',
+        }
+    }
     for patch in args.patches:
         patch_data = yaml.load(patch)
 

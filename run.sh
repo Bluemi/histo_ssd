@@ -27,18 +27,20 @@ case "$1" in
 			shift
 		fi
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" \
-			p/augmentation/test_rotate_flip.yaml \
 			p/cluster/pepper.yaml \
 			p/dataset/lizard.yaml \
+			p/dataset/ignore_rare_classes.yaml \
 			p/hparams/lr_narrow.yaml \
-			p/hparams/negative_ratio_narrow.yaml \
-			p/hparams/image_stride.yaml \
-			p/hparams/smoothl1.yaml \
-			p/hparams/nms_threshold.yaml \
 			p/metrics/map.yaml \
 			p/metrics/write_predictions.yaml \
 			p/model/vgg16.yaml \
-			p/searcher/random.yaml
+			p/searcher/adaptive_asha.yaml
+			# p/augmentation/test_rotate_flip.yaml \
+			# p/searcher/random.yaml \
+			# p/hparams/negative_ratio_narrow.yaml \
+			# p/hparams/image_stride.yaml \
+			# p/hparams/smoothl1.yaml \
+			# p/hparams/nms_threshold.yaml \
 		;;
 	o|orig)
 		PYTHONPATH=./src python3 ./tests/test_orig.py
