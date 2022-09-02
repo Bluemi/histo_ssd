@@ -15,20 +15,22 @@ from utils.clock import Clock
 from utils.funcs import debug, draw_boxes
 
 
-SHOW_IMAGE = True
+SHOW_IMAGE = False
 
 
 def main():
-    ignore_classes = [0, 4]
-    # ignore_classes = None
+    # ignore_classes = [0, 4]
+    ignore_classes = None
     dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
-        image_size=np.array([224, 224]),
-        image_stride=np.array([224, 224]),
+        image_size=np.array([300, 300]),
+        image_stride=np.array([300, 300]),
         use_cache=True,
         show_progress=True,
         ignore_classes=ignore_classes,
     )
+
+    debug(len(dataset))
 
     train, validation = dataset.split(0.8)
 
@@ -43,25 +45,58 @@ def main():
         ]
     )
 
-    data_loader = DataLoader(dataset, batch_size=64)
+    label_distribution = get_distribution(dataset)
+    print('whole dataset')
+    print_distribution(label_distribution)
 
-    label_distribution = defaultdict(int)
-    sample_counter = 0
-    for batch in data_loader:
-        for image, sample in zip(batch['image'], batch['boxes']):
-            sample_counter += 1
-            for box in sample:
-                label = box[0].item()
-                label_distribution[label] += 1
-            if SHOW_IMAGE:
-                image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
-                draw_boxes(image, sample[:, 1:], box_format='ltrb')
-                plt.imshow(image)
-                plt.show()
+    train_label_distribution = get_distribution(train)
+    print('train dataset')
+    print_distribution(train_label_distribution)
 
+    val_label_distribution = get_distribution(validation)
+    print('val dataset')
+    print_distribution(val_label_distribution)
+
+    max_boxes = 0
+    min_boxes = 100000
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        boxes = sample['boxes']
+        max_boxes = max(max_boxes, len(boxes))
+        min_boxes = min(min_boxes, len(boxes))
+
+    print('max boxes:', max_boxes)
+    print('min boxes:', min_boxes)
+
+    if SHOW_IMAGE:
+        for i in range(len(dataset)):
+            sample = dataset[i]
+            image = sample['image']
+            boxes = sample['boxes']
+            image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+            draw_boxes(image, torch.tensor(boxes[:, 1:]), box_format='ltrb')
+            plt.imshow(image)
+            plt.show()
+
+
+def print_distribution(label_distribution: dict):
     for label in sorted(label_distribution.keys()):
         print('{}: {}'.format(label, label_distribution[label]))
-    print('{} samples'.format(sample_counter))
+    print('total:', sum(label_distribution.values()))
+
+
+def get_distribution(dataset):
+    label_distribution = defaultdict(int)
+    sample_counter = 0
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        boxes = sample['boxes']
+        sample_counter += 1
+        for box in boxes:
+            label = box[0].item()
+            label_distribution[label] += 1
+    del label_distribution[-1]
+    return label_distribution
 
 
 def profile():
