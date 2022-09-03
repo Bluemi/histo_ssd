@@ -276,7 +276,7 @@ class DefaultTrial(PyTorchTrial):
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 
-            if not self.enable_full_evaluation and mean_average_precision_counter < MAX_MAP_UPDATES:
+            if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
                 mean_average_precision_counter += len(batch['boxes'])
 
