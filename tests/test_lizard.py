@@ -79,6 +79,19 @@ def main():
             plt.show()
 
 
+def main2():
+    dataset = LizardDetectionDataset.from_datadir(
+        data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
+        image_size=np.array([300, 300]),
+        image_stride=np.array([150, 150]),
+        use_cache=True,
+        show_progress=True,
+        ignore_classes=[0, 4],
+    )
+    train_set, val_set = dataset.split(0.8)
+    print('len val:', len(val_set))
+
+
 def print_distribution(label_distribution: dict):
     for label in sorted(label_distribution.keys()):
         print('{}: {}'.format(label, label_distribution[label]))
@@ -123,5 +136,6 @@ def iterate_through(data_loader):
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    main2()
     # profile()

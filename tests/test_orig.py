@@ -116,6 +116,7 @@ net.eval()
 for batch in val_iter:
     images = batch['image']
     ground_truth_boxes = batch['boxes']
+    debug(images.shape)
 
     anchors, cls_preds, bbox_preds = net(images)
     debug(anchors.shape)
