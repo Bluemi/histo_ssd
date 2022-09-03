@@ -4,14 +4,14 @@ hyperparameters:
   global_batch_size: 32
   num_workers: 8
   optimizer: "sgd"
-  learning_rate: 0.05
+  learning_rate: 0.026
   l2_regularization: 1e-5
   momentum: 0.9
   hnm_norm_per_batch: true
   image_prediction_score_threshold: 0.7
   image_prediction_max_images: 0
   negative_ratio: 4.0
-  min_anchor_size: 0.033
+  min_anchor_size: 0.06
   max_anchor_size: 0.54
   nms_threshold: 0.55
   aug_norm: false

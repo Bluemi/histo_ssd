@@ -26,24 +26,27 @@ case "$1" in
 			dry='--dry'
 			shift
 		fi
-		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" \
-			p/cluster/pepper.yaml \
-			p/dataset/lizard.yaml \
-			p/dataset/ignore_rare_classes.yaml \
-			p/hparams/lr_narrow.yaml \
-			p/hparams/sizes_small.yaml \
-			p/metrics/loss.yaml \
-			p/metrics/write_predictions.yaml \
-			p/model/vgg16.yaml \
-			p/save_checkpoints.yaml \
+		patches=(
+			p/cluster/pepper.yaml
+			p/dataset/lizard.yaml
+			p/dataset/ignore_rare_classes.yaml
+
+			# p/augmentation/test_rotate_flip.yaml
+			p/hparams/lr_narrow.yaml
+			p/hparams/sizes_small.yaml
+			# p/hparams/negative_ratio_narrow.yaml
+			# p/hparams/image_stride.yaml
+			# p/hparams/smoothl1.yaml
+			# p/hparams/nms_threshold.yaml
+			p/metrics/loss.yaml
+			# p/metrics/map.yaml
+			p/metrics/write_predictions.yaml
+			p/model/vgg16.yaml
+			p/save_checkpoints.yaml
 			p/searcher/adaptive_asha.yaml
-			# p/augmentation/test_rotate_flip.yaml \
-			# p/searcher/random.yaml \
-			# p/hparams/negative_ratio_narrow.yaml \
-			# p/hparams/image_stride.yaml \
-			# p/hparams/smoothl1.yaml \
-			# p/hparams/nms_threshold.yaml \
-			# p/metrics/map.yaml \
+			# p/searcher/random.yaml
+			)
+		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "${patches[@]}"
 		;;
 	o|orig)
 		PYTHONPATH=./src python3 ./tests/test_orig.py
