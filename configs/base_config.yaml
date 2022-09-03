@@ -22,6 +22,7 @@ hyperparameters:
   use_clock: false
   use_smooth_l1: false
   max_eval_time: 240  # only validate 4 minutes
+  bbox_loss_scale: 1.0
 workspace: MastersthesisBruno
 project: SSD
 min_validation_period:

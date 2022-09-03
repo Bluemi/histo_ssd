@@ -53,6 +53,7 @@ class DefaultTrial(PyTorchTrial):
         optimizer_name = self.context.get_hparam('optimizer')
         self.enable_full_evaluation = False
         self.max_eval_time = self.context.get_hparams().get('max_eval_time')
+        self.bbox_loss_scale = self.context.get_hparams().get('bbox_loss_scale', 1.0)
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -175,7 +176,7 @@ class DefaultTrial(PyTorchTrial):
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
             normalize_per_batch=self.normalize_per_batch, use_smooth_l1=self.use_smooth_l1,
         )
-        loss = (cls_loss + bbox_loss).mean()
+        loss = (cls_loss + bbox_loss * self.bbox_loss_scale).mean()
         self.context.backward(loss)
         self.context.step_optimizer(self.optimizer)
 
@@ -262,7 +263,7 @@ class DefaultTrial(PyTorchTrial):
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
                 use_smooth_l1=self.use_smooth_l1,
             )
-            loss = (cls_loss + bbox_loss).mean()
+            loss = (cls_loss + bbox_loss * 25.0).mean()  # we do not scale loss here for evaluation
             losses.append(loss)
 
             predict_clock = Clock()
