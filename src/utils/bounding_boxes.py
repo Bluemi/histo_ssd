@@ -153,77 +153,31 @@ def create_anchor_boxes(
     return output.unsqueeze(0)
 
 
-def intersection_over_union(box_a, box_b):
-    """
-    Taken from: https://github.com/amdegroot/ssd.pytorch/
-    Compute the jaccard overlap of two sets of boxes.  The jaccard overlap
-    is simply the intersection over union of two boxes.  Here we operate on
-    ground truth boxes and default boxes.
-    E.g.:
-        A ∩ B / A ∪ B = A ∩ B / (area(A) + area(B) - A ∩ B)
-    Args:
-        box_a: (tensor) Ground truth bounding boxes, Shape: [num_objects,4]
-        box_b: (tensor) Prior boxes from priorbox layers, Shape: [num_priors,4]
-    Return:
-        jaccard overlap: (tensor) Shape: [box_a.size(0), box_b.size(0)]
-    """
-    def intersect(box_a, box_b):
-        """ We resize both tensors to [A,B,2] without new malloc:
-        [A,2] -> [A,1,2] -> [A,B,2]
-        [B,2] -> [1,B,2] -> [A,B,2]
-        Then we compute the area of intersect between box_a and box_b.
-        Args:
-          box_a: (tensor) bounding boxes, Shape: [A,4].
-          box_b: (tensor) bounding boxes, Shape: [B,4].
-        Return:
-          (tensor) intersection area, Shape: [A,B].
-        """
-        A = box_a.size(0)
-        B = box_b.size(0)
-        max_xy = torch.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2), box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
-        min_xy = torch.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2), box_b[:, :2].unsqueeze(0).expand(A, B, 2))
-        inter = torch.clamp((max_xy - min_xy), min=0)
-        return inter[:, :, 0] * inter[:, :, 1]
-    inter = intersect(box_a, box_b)
-    area_a = ((box_a[:, 2]-box_a[:, 0]) * (box_a[:, 3]-box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
-    area_b = ((box_b[:, 2]-box_b[:, 0]) * (box_b[:, 3]-box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
-    union = area_a + area_b - inter
-    return inter / union  # [A,B]
-
-
-'''
 def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """
     Calculates the intersection over union for a batch of bounding boxes in tlbr-format.
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#intersection-over-union-iou
 
     :param boxes1: First set of bounding boxes of shape (N, 4)
     :param boxes2: Second set of bounding boxes of shape (M, 4)
     :return: A tensor of shape (N,M) containing the intersection over unions. IoU[i][j] is the IoU of the i-th box of
              the first argument and the j-th box of the second argument.
     """
-    def _area_of_boxes(boxes):
+    def box_area(boxes):
         return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-
-    def _area_of_intersections(tl, br):
-        inters = br - tl
-        return inters[:, :, 0] * inters[:, :, 1]
-
-    # shape (N, M, 2)
-    top_left = torch.max(boxes1[:, None, :2], boxes2[:, :2])
-    bottom_right = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
-
-    # find out invalid intersection areas
-    invalid_mask = 1.0 - torch.logical_or(
-        torch.gt(top_left[:, :, 0], bottom_right[:, :, 0]),  # top > bottom -> invalid
-        torch.gt(top_left[:, :, 1], bottom_right[:, :, 1])   # left > right -> invalid
-    ).to(torch.float)
-
-    boxes1_areas = _area_of_boxes(boxes1)
-    boxes2_areas = _area_of_boxes(boxes2)
-    intersection_areas = _area_of_intersections(top_left, bottom_right)
-
-    return torch.abs(invalid_mask * intersection_areas / (boxes1_areas[:, None] + boxes2_areas - intersection_areas))
-'''
+    # Shape of `boxes1`, `boxes2`, `areas1`, `areas2`: (no. of boxes1, 4),
+    # (no. of boxes2, 4), (no. of boxes1,), (no. of boxes2,)
+    areas1 = box_area(boxes1)
+    areas2 = box_area(boxes2)
+    # Shape of `inter_upperlefts`, `inter_lowerrights`, `inters`: (no. of
+    # boxes1, no. of boxes2, 2)
+    inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
+    inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
+    inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)
+    # Shape of `inter_areas` and `union_areas`: (no. of boxes1, no. of boxes2)
+    inter_areas = inters[:, :, 0] * inters[:, :, 1]
+    union_areas = areas1[:, None] + areas2 - inter_areas
+    return inter_areas / union_areas
 
 
 def assign_anchor_to_ground_truth_boxes(
