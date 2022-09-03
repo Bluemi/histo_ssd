@@ -2,4 +2,4 @@ searcher:
   name: adaptive_asha
   max_length:
     batches: 3000
-  max_trials: 300
+  max_trials: 500
