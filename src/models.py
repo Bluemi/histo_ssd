@@ -562,6 +562,8 @@ def predict(
 
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#prediction
 
+    :param cls_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
+    :param bbox_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4]
     :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
     :param nms_threshold: The iou threshold to suppress overlapping predictions with non-maximum suppression.
 
