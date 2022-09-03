@@ -153,6 +153,15 @@ def create_anchor_boxes(
     return output.unsqueeze(0)
 
 
+def box_area(boxes: torch.Tensor) -> torch.Tensor:
+    """
+    Calculates the area of all given boxes.
+    :param boxes: A tensor with shape (NUM_BOXES, 4), each sample containing (l, t, r, b).
+    :return: The area of each box with shape (NUM_BOXES,)
+    """
+    return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+
+
 def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """
     Calculates the intersection over union for a batch of bounding boxes in tlbr-format.
@@ -163,14 +172,11 @@ def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch
     :return: A tensor of shape (N,M) containing the intersection over unions. IoU[i][j] is the IoU of the i-th box of
              the first argument and the j-th box of the second argument.
     """
-    def box_area(boxes):
-        return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
     # Shape of `boxes1`, `boxes2`, `areas1`, `areas2`: (no. of boxes1, 4),
     # (no. of boxes2, 4), (no. of boxes1,), (no. of boxes2,)
     areas1 = box_area(boxes1)
     areas2 = box_area(boxes2)
-    # Shape of `inter_upperlefts`, `inter_lowerrights`, `inters`: (no. of
-    # boxes1, no. of boxes2, 2)
+    # Shape of `inter_upperlefts`, `inter_lowerrights`, `inters`: (no. of boxes1, no. of boxes2, 2)
     inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
     inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
     inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)

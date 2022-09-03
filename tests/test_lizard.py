@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.augmentations import RandomRotate, RandomFlip
+from utils.bounding_boxes import box_area
 from utils.clock import Clock
 from utils.funcs import debug, draw_boxes
 
@@ -59,17 +60,25 @@ def main():
 
     max_boxes = 0
     min_boxes = 100000
+    box_area_sum = 0
+    num_boxes = 0
     for i in range(len(dataset)):
         sample = dataset[i]
         boxes = sample['boxes']
         valid_box_indices = boxes[:, 0] != -1.0  # filter out invalid boxes
         boxes = boxes[valid_box_indices]
-        print('num boxes:', len(boxes))
+
+        box_areas = box_area(boxes[:, 1:])
+        box_area_sum += np.sum(box_areas)
+        num_boxes += boxes.shape[0]
+
         max_boxes = max(max_boxes, len(boxes))
         min_boxes = min(min_boxes, len(boxes))
 
-    print('max boxes:', max_boxes)
+    print('\nmax boxes:', max_boxes)
     print('min boxes:', min_boxes)
+    area_mean = box_area_sum / num_boxes
+    print('mean area:', area_mean)
 
     if SHOW_IMAGE:
         for i in range(len(dataset)):
