@@ -18,6 +18,9 @@ class Clock:
         self.start_time = now
         return duration
 
+    def get_duration(self):
+        return Clock._get_now() - self.start_time
+
     def stop_and_print(self, format_str: str):
         duration = self.stop()
         print(format_str.format(duration))

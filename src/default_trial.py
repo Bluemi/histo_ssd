@@ -51,6 +51,7 @@ class DefaultTrial(PyTorchTrial):
         self.num_classes = self._get_num_classes()
         optimizer_name = self.context.get_hparam('optimizer')
         self.enable_write_predictions = False
+        self.max_eval_time = self.context.get_hparams().get('max_eval_time')
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -103,7 +104,7 @@ class DefaultTrial(PyTorchTrial):
             image_stride = round(image_size * image_stride)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
 
-        print('loading \"{}\" dataset: '.format(dataset_name), end='', flush=True)
+        print('loading \"{}\" dataset...'.format(dataset_name))
         if dataset_name == 'lizard':
             dataset = LizardDetectionDataset.from_avocado(
                 image_size=np.array([image_size, image_size]),
@@ -115,6 +116,7 @@ class DefaultTrial(PyTorchTrial):
             )
             split_size = self.context.get_hparam('dataset_split_size')
             datasets = dataset.split(split_size)
+            print('train len: {}  val len: {}'.format(len(datasets[0]), len(datasets[1])))
         elif dataset_name == 'banana':
             dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
             dataset_train = BananasDataset(
@@ -129,7 +131,7 @@ class DefaultTrial(PyTorchTrial):
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
-        print('Done', flush=True)
+        print('Done')
 
         return datasets
 
@@ -275,6 +277,7 @@ class DefaultTrial(PyTorchTrial):
             batch_output = predict(
                 anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold, pos_threshold=pos_threshold
             )
+            last_predict_duration = predict_clock.get_duration()
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 
@@ -286,6 +289,11 @@ class DefaultTrial(PyTorchTrial):
             # write prediction images
             if self.enable_write_predictions and image_counter < image_prediction_max_images:
                 image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
+            if self.max_eval_time is not None and eval_clock.get_duration() > self.max_eval_time:
+                print('early evaluation stop. Took {} sec until now. Last predict() took {} sec'.format(
+                    eval_clock.get_duration(), last_predict_duration
+                ))
+                break  # stop early, if it takes too long
         if self.use_clock:
             go_through_dataset_clock.stop_and_print('predict dataset took {} seconds')
 

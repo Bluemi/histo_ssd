@@ -21,6 +21,7 @@ hyperparameters:
   enable_class_metrics: false
   use_clock: false
   use_smooth_l1: false
+  max_eval_time: 240  # only validate 4 minutes
 workspace: MastersthesisBruno
 project: SSD
 min_validation_period:

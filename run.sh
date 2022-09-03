@@ -28,6 +28,8 @@ case "$1" in
 		fi
 		patches=(
 			p/cluster/pepper.yaml
+			# p/cluster/dt.yaml
+
 			p/dataset/lizard.yaml
 			p/dataset/ignore_rare_classes.yaml
 			p/model/vgg16.yaml
@@ -45,10 +47,12 @@ case "$1" in
 			p/metrics/write_predictions.yaml
 
 			p/checkpointing/save_checkpoints.yaml
-			p/checkpointing/load_checkpoint.yaml
+			# p/checkpointing/load_checkpoint.yaml
 
 			p/searcher/adaptive_asha.yaml
 			# p/searcher/random.yaml
+
+			p/profiling/clock.yaml
 			)
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "${patches[@]}"
 		;;
