@@ -263,7 +263,7 @@ class DefaultTrial(PyTorchTrial):
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
                 use_smooth_l1=self.use_smooth_l1,
             )
-            loss = (cls_loss + bbox_loss * 25.0).mean()  # we do not scale loss here for evaluation
+            loss = (cls_loss + bbox_loss * 50.0).mean()  # we do not scale loss here for evaluation
             losses.append(loss)
 
             predict_clock = Clock()
