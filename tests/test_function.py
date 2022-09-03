@@ -4,7 +4,9 @@ from torch.utils.data import DataLoader
 
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
-from utils.bounding_boxes import multibox_target
+from utils.bounding_boxes import multibox_target, generate_random_boxes, intersection_over_union2, \
+    intersection_over_union
+from utils.clock import Clock
 from utils.funcs import debug
 
 BATCH_SIZE = 3
@@ -49,5 +51,30 @@ def main():
         break
 
 
+def test_iou():
+    boxes1 = generate_random_boxes(8000, min_size=0.02, max_size=0.04)
+    boxes2 = generate_random_boxes(8000, min_size=0.02, max_size=0.04)
+    # debug(torch.mean(boxes1-boxes2))
+    clock = Clock()
+    iou_new = intersection_over_union2(boxes1, boxes2)
+    clock.stop_and_print('new: {} seconds')
+    iou_orig = intersection_over_union(boxes1, boxes2)
+    clock.stop_and_print('orig: {} seconds')
+
+    debug(torch.max(iou_new - iou_orig))
+
+    # debug(intersection_over_union(boxes1, boxes2))
+    # debug()
+    return
+    print('calc iou', flush=True)
+    iou1 = intersection_over_union(boxes1, boxes2)
+    print('Done', flush=True)
+    print('calc iou2', flush=True)
+    iou2 = intersection_over_union2(boxes1, boxes2)
+    print('Done', flush=True)
+    print(torch.mean(iou1 - iou2))
+
+
 if __name__ == '__main__':
-    main()
+    test_iou()
+    # main()

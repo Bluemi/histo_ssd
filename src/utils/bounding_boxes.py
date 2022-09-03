@@ -11,6 +11,9 @@ yxhw-Format:
 import torch
 from typing import List, Union, Tuple
 
+from utils.clock import Clock
+from utils.funcs import debug
+
 
 def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
     """
@@ -203,6 +206,66 @@ def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch
     intersection_areas = _area_of_intersections(top_left, bottom_right)
 
     return torch.abs(invalid_mask * intersection_areas / (boxes1_areas[:, None] + boxes2_areas - intersection_areas))
+
+
+def intersection_over_union2(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+    """
+    Calculates the intersection over union for a batch of bounding boxes in tlbr-format.
+
+    :param boxes1: First set of bounding boxes of shape (N, 4) with (l, t, r, b)
+    :param boxes2: Second set of bounding boxes of shape (M, 4)
+    :return: A tensor of shape (N,M) containing the intersection over unions. IoU[i][j] is the IoU of the i-th box of
+             the first argument and the j-th box of the second argument.
+    """
+    GRIDSIZE = 10
+    L = 0
+    T = 1
+    R = 2
+    B = 3
+    clock = Clock()
+    clock.start()
+    boxes1 = torch.clamp(boxes1 * GRIDSIZE, min=0, max=GRIDSIZE-0.0001)
+    boxes2 = torch.clamp(boxes2 * GRIDSIZE, min=0, max=GRIDSIZE-0.0001)
+
+    # iboxes1[i] yields the smallest grid-cell-box wrapping it
+    iboxes1 = boxes1.int()
+    iboxes2 = boxes2.int()
+
+    clock.stop_and_print('init: {} seconds')
+
+    def _iou(box1, box2):
+        left = max(box1[L], box2[L])
+        right = min(box1[R], box2[R])
+        top = max(box1[T], box2[T])
+        bot = min(box1[B], box2[B])
+        intersection_area = (right-left) * (bot-top)
+        box1_area = (box1[R] - box1[L]) * (box1[B] - box1[T])
+        box2_area = (box2[R] - box2[L]) * (box2[B] - box2[T])
+        return intersection_area / (box1_area + box2_area - intersection_area)
+
+    iou = torch.zeros((boxes1.shape[0], boxes2.shape[0]))
+    grid = [[[] for _ in range(GRIDSIZE)] for _ in range(GRIDSIZE)]
+    clock.stop_and_print('create grid {} seconds')
+    for i, box in enumerate(iboxes1):
+        for x in range(box[L], box[R]+1):
+            for y in range(box[T], box[B]+1):
+                grid[x][y].append(i)
+    clock.stop_and_print('fill grid {} seconds')
+
+    ij_pairs = set()
+    for j, box in enumerate(iboxes2):
+        for x in range(box[L], box[R]+1):
+            for y in range(box[T], box[B]+1):
+                ij_pairs.add((i, j))
+    clock.stop_and_print('ij pairs {} seconds')
+
+    debug(len(ij_pairs))
+    ij_pairs = torch.tensor(list(ij_pairs), dtype=torch.int32)
+    debug(ij_pairs.shape)
+    for i, j in ij_pairs:
+        iou[i][j] = _iou(boxes1[i], boxes2[j])
+    clock.stop_and_print('calc iou {} seconds')
+    return iou
 
 
 def assign_anchor_to_ground_truth_boxes(
