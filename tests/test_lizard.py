@@ -62,6 +62,8 @@ def main():
     for i in range(len(dataset)):
         sample = dataset[i]
         boxes = sample['boxes']
+        valid_box_indices = boxes[:, 0] != -1.0  # filter out invalid boxes
+        boxes = boxes[valid_box_indices]
         print('num boxes:', len(boxes))
         max_boxes = max(max_boxes, len(boxes))
         min_boxes = min(min_boxes, len(boxes))

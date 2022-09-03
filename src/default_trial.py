@@ -22,6 +22,7 @@ from utils.augmentations import RandomRotate, RandomFlip
 
 DEFAULT_WARMUP_BATCHES = 300
 WRITE_PREDICTIONS_BATCH = 2900
+MAX_MAP_UPDATES = 400  # only use some samples for mean average precision update
 
 
 class DefaultTrial(PyTorchTrial):
@@ -154,12 +155,6 @@ class DefaultTrial(PyTorchTrial):
         else:
             raise ValueError('Unknown dataset: {}'.format(dataset_name))
 
-    @staticmethod
-    def _get_max_class_probs(cls_preds: torch.Tensor):
-        cls_probs = functional.softmax(cls_preds, dim=2)
-        cls_probs = cls_probs.reshape((-1, cls_probs.shape[-1]))
-        return torch.max(cls_probs, dim=0)[0]
-
     def train_batch(
         self, batch: TorchData, epoch_idx: int, batch_idx: int
     ) -> Dict[str, Any]:
@@ -253,8 +248,8 @@ class DefaultTrial(PyTorchTrial):
         mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=self.enable_class_metrics)
 
         image_counter = 0
+        mean_average_precision_counter = 0
         losses = []
-        all_max_class_probs = []
         cls_loss = None
         bbox_loss = None
         go_through_dataset_clock = Clock()
@@ -281,10 +276,9 @@ class DefaultTrial(PyTorchTrial):
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 
-            update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
-
-            max_class_probs = DefaultTrial._get_max_class_probs(cls_preds)
-            all_max_class_probs.append(max_class_probs)
+            if mean_average_precision_counter < MAX_MAP_UPDATES:
+                update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
+                mean_average_precision_counter += len(batch['boxes'])
 
             # write prediction images
             if self.enable_write_predictions and image_counter < image_prediction_max_images:
