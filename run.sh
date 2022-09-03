@@ -47,7 +47,7 @@ case "$1" in
 			p/metrics/write_predictions.yaml
 
 			p/checkpointing/save_checkpoints.yaml
-			# p/checkpointing/load_checkpoint.yaml
+			p/checkpointing/load_checkpoint.yaml
 
 			p/searcher/adaptive_asha.yaml
 			# p/searcher/random.yaml
