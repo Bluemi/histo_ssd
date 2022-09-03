@@ -52,7 +52,7 @@ case "$1" in
 			# p/searcher/adaptive_asha.yaml
 			p/searcher/random.yaml
 
-			p/profiling/clock.yaml
+			# p/profiling/clock.yaml
 			)
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "${patches[@]}"
 		;;
