@@ -62,6 +62,7 @@ def main():
     for i in range(len(dataset)):
         sample = dataset[i]
         boxes = sample['boxes']
+        print('num boxes:', len(boxes))
         max_boxes = max(max_boxes, len(boxes))
         min_boxes = min(min_boxes, len(boxes))
 
@@ -136,6 +137,6 @@ def iterate_through(data_loader):
 
 
 if __name__ == '__main__':
-    # main()
-    main2()
+    main()
+    # main2()
     # profile()
