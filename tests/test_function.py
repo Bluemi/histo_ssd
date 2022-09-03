@@ -5,13 +5,15 @@ from torch.utils.data import DataLoader
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.bounding_boxes import multibox_target, generate_random_boxes, intersection_over_union2, \
-    intersection_over_union
+    intersection_over_union, box_iou
 from utils.clock import Clock
 from utils.funcs import debug
+from torchvision import ops
 
 BATCH_SIZE = 3
 NUM_CLASSES = 6
 torch.set_printoptions(2)
+SMOOTH = 1e-6
 
 
 def main():
@@ -49,6 +51,22 @@ def main():
                 if mask != 0.0 or cls_label != 0.0:
                     print('mask: {}  cls_label: {}'.format(mask, cls_label))
         break
+
+
+def iou_pytorch(outputs: torch.Tensor, labels: torch.Tensor):
+    # You can comment out this line if you are passing tensors of equal shape
+    # But if you are passing output from UNet or something it will most probably
+    # be with the BATCH x 1 x H x W shape
+    outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+
+    intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
+    union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
+
+    iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+
+    thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
+
+    return thresholded
 
 
 def jaccard(box_a, box_b):
@@ -94,23 +112,20 @@ def test_iou():
     clock = Clock()
     # iou_new = intersection_over_union2(boxes1, boxes2)
     # clock.stop_and_print('new: {} seconds')
-    iou_orig = intersection_over_union(boxes1, boxes2)
-    clock.stop_and_print('orig: {} seconds')
-    iou_newer = jaccard(boxes1, boxes2)
-    clock.stop_and_print('jaccard: {} seconds')
+    fs = [intersection_over_union, intersection_over_union2, box_iou, ops.box_iou]
+    results = []
+    iou_compare = ops.box_iou(boxes1, boxes2)
+    for f in fs:
+        clock = Clock()
+        iou = None
+        for _ in range(1000):
+            iou = intersection_over_union(boxes1, boxes2)
+        assert torch.allclose(iou, iou_compare)
+        duration = clock.stop()
+        results.append((f.__name__, duration))
 
-    debug(torch.allclose(iou_newer, iou_orig))
-
-    # debug(intersection_over_union(boxes1, boxes2))
-    # debug()
-    return
-    print('calc iou', flush=True)
-    iou1 = intersection_over_union(boxes1, boxes2)
-    print('Done', flush=True)
-    print('calc iou2', flush=True)
-    iou2 = intersection_over_union2(boxes1, boxes2)
-    print('Done', flush=True)
-    print(torch.mean(iou1 - iou2))
+    for result in results:
+        print('{}: {}'.format(*result))
 
 
 if __name__ == '__main__':
