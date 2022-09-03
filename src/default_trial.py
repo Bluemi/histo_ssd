@@ -51,7 +51,7 @@ class DefaultTrial(PyTorchTrial):
         self.ignore_classes = ignore_classes
         self.num_classes = self._get_num_classes()
         optimizer_name = self.context.get_hparam('optimizer')
-        self.enable_write_predictions = False
+        self.enable_full_evaluation = False
         self.max_eval_time = self.context.get_hparams().get('max_eval_time')
 
         # the dataset is loaded at the start to make it possible to split it
@@ -163,7 +163,7 @@ class DefaultTrial(PyTorchTrial):
         self.optimizer.zero_grad()
 
         if batch_idx > WRITE_PREDICTIONS_BATCH:
-            self.enable_write_predictions = True
+            self.enable_full_evaluation = True
 
         if self.pretrained and batch_idx >= self.warmup_batches:
             self.model.unfreeze()
@@ -267,7 +267,7 @@ class DefaultTrial(PyTorchTrial):
 
             predict_clock = Clock()
             pos_threshold = 0.5
-            if self.enable_write_predictions:
+            if self.enable_full_evaluation:
                 pos_threshold = 0.2
             batch_output = predict(
                 anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold, pos_threshold=pos_threshold
@@ -276,12 +276,12 @@ class DefaultTrial(PyTorchTrial):
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
 
-            if mean_average_precision_counter < MAX_MAP_UPDATES:
+            if not self.enable_full_evaluation and mean_average_precision_counter < MAX_MAP_UPDATES:
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
                 mean_average_precision_counter += len(batch['boxes'])
 
             # write prediction images
-            if self.enable_write_predictions and image_counter < image_prediction_max_images:
+            if self.enable_full_evaluation and image_counter < image_prediction_max_images:
                 image_counter = self.write_prediction_images(batch_output, batch, batch_idx, image_counter)
             if self.max_eval_time is not None and eval_clock.get_duration() > self.max_eval_time:
                 print('early evaluation stop. Took {} sec until now. Last predict() took {} sec'.format(
