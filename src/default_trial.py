@@ -312,6 +312,7 @@ class DefaultTrial(PyTorchTrial):
     def build_training_data_loader(self) -> DataLoader:
         # augmentation
         transforms = []
+
         use_normalization = self.context.get_hparams().get('aug_norm', False)
         if use_normalization:
             # noinspection PyUnresolvedReferences
@@ -353,8 +354,22 @@ class DefaultTrial(PyTorchTrial):
 
     def build_validation_data_loader(self) -> DataLoader:
         shuffle_validation = self.context.get_hparams().get('shuffle_validation', False)
-        return DataLoader(
+
+        transforms = []
+
+        model_image_size = self.context.get_hparam('model_image_size')
+        if model_image_size != self.dataset_image_size:
+            transforms.append(
+                ('image', torchvision.transforms.Resize((model_image_size, model_image_size)))
+            )
+
+        dataset = AugmentationWrapper(
             self.validation_dataset,
+            transforms
+        )
+
+        return DataLoader(
+            dataset,
             batch_size=self.context.get_per_slot_batch_size(),
             shuffle=shuffle_validation,  # set to True, to see different images in Tensorboard
             num_workers=self.context.get_hparam('num_workers'),
