@@ -22,7 +22,7 @@ SHOW_IMAGE = False
 def main():
     # ignore_classes = [0, 4]
     ignore_classes = None
-    dataset = LizardDetectionDataset.from_datadir(
+    whole_dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
         image_size=np.array([300, 300]),
         image_stride=np.array([300, 300]),
@@ -31,14 +31,18 @@ def main():
         ignore_classes=ignore_classes,
     )
 
-    debug(len(dataset))
+    train, validation = whole_dataset.split(0.8)
 
-    train, validation = dataset.split(0.8)
-
+    debug(len(whole_dataset))
     debug(len(train))
     debug(len(validation))
 
-    dataset = AugmentationWrapper(
+    show_area_stats(whole_dataset)
+    # show_images(whole_dataset)
+
+
+def wrap_dataset(dataset):
+    return AugmentationWrapper(
         dataset,
         [
             (None, RandomRotate()),
@@ -46,49 +50,62 @@ def main():
         ]
     )
 
-    label_distribution = get_distribution(dataset)
+
+def show_sample(image, boxes):
+    image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+    draw_boxes(image, torch.tensor(boxes[:, 1:]), box_format='ltrb')
+    plt.imshow(image)
+    plt.show()
+
+
+def filter_boxes(boxes):
+    valid_box_indices = boxes[:, 0] != -1.0  # filter out invalid boxes
+    return boxes[valid_box_indices]
+
+
+def show_images(dataset):
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        image = sample['image']
+        boxes = filter_boxes(sample['boxes'])
+        show_sample(image, boxes)
+
+
+def show_area_stats(dataset):
+    max_area = 0
+    min_area = 1
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        image = sample['image']
+        boxes = filter_boxes(sample['boxes'])
+
+        box_areas = box_area(boxes[:, 1:])
+        max_area = max(max_area, np.max(box_areas))
+        min_area = min(min_area, np.min(box_areas))
+        if np.max(box_areas) > 0.5:
+            for box in boxes:
+                this_box_area = box_area(box[None, 1:])
+                if this_box_area > 0.5:
+                    print(box)
+                    print('sample:', sample['sample_name'])
+            show_sample(image, boxes)
+
+    print('min area:', min_area)
+    print('max area:', max_area)
+
+
+def show_distributions(whole_dataset, train_dataset, val_dataset):
+    label_distribution = get_distribution(whole_dataset)
     print('whole dataset')
     print_distribution(label_distribution)
 
-    train_label_distribution = get_distribution(train)
+    train_label_distribution = get_distribution(train_dataset)
     print('train dataset')
     print_distribution(train_label_distribution)
 
-    val_label_distribution = get_distribution(validation)
+    val_label_distribution = get_distribution(val_dataset)
     print('val dataset')
     print_distribution(val_label_distribution)
-
-    max_boxes = 0
-    min_boxes = 100000
-    box_area_sum = 0
-    num_boxes = 0
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        boxes = sample['boxes']
-        valid_box_indices = boxes[:, 0] != -1.0  # filter out invalid boxes
-        boxes = boxes[valid_box_indices]
-
-        box_areas = box_area(boxes[:, 1:])
-        box_area_sum += np.sum(box_areas)
-        num_boxes += boxes.shape[0]
-
-        max_boxes = max(max_boxes, len(boxes))
-        min_boxes = min(min_boxes, len(boxes))
-
-    print('\nmax boxes:', max_boxes)
-    print('min boxes:', min_boxes)
-    area_mean = box_area_sum / num_boxes
-    print('mean area:', area_mean)
-
-    if SHOW_IMAGE:
-        for i in range(len(dataset)):
-            sample = dataset[i]
-            image = sample['image']
-            boxes = sample['boxes']
-            image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
-            draw_boxes(image, torch.tensor(boxes[:, 1:]), box_format='ltrb')
-            plt.imshow(image)
-            plt.show()
 
 
 def main2():
