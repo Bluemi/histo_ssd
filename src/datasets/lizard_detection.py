@@ -173,6 +173,30 @@ class LizardDetectionDataset(Dataset):
         return subimages
 
     @staticmethod
+    def _filter_and_transform_all_label_data(all_label_data: np.ndarray, position, image_size) -> np.ndarray:
+        bot_right = position + image_size
+
+        # bbox top >= image top
+        included_indices = all_label_data[:, 1] >= position[0]
+
+        # bbox bot < image bot
+        included_indices = np.logical_and(included_indices, all_label_data[:, 3] < bot_right[0])
+
+        # bbox left >= image left
+        included_indices = np.logical_and(included_indices, all_label_data[:, 2] >= position[1])
+
+        # bbox right < image right
+        included_indices = np.logical_and(included_indices, all_label_data[:, 4] < bot_right[1])
+
+        image_data = np.copy(all_label_data[included_indices])
+
+        # subtract position to move to center
+        image_data[:, (1, 3)] -= position[0]
+        image_data[:, (2, 4)] -= position[1]
+
+        return image_data
+
+    @staticmethod
     def _snapshots_from_image_file(
             data_dir: Path, filename: Path, image_size: np.ndarray, image_stride: np.ndarray, ignore_classes
     ) -> List[Snapshot]:
@@ -187,23 +211,24 @@ class LizardDetectionDataset(Dataset):
         all_label_data = LizardDetectionDataset._load_all_label_data(data_dir, sample_name)
 
         # maps class labels to new class labels
-        label_map = list(range(100))
+        label_map = list(range(10))
         for ignore_class in sorted(ignore_classes, reverse=False):
             label_map.insert(ignore_class, None)
 
         # iterate as long as right-bottom corner of subimage is in bounds of full_image_size
         while (position + image_size <= full_image_size).all():
-            # filter relevant label data
             bounding_boxes = []
             class_labels = []
-            for label, bounding_box in all_label_data:
-                if LizardDetectionDataset._bounding_box_in_snapshot(position, image_size, bounding_box):
-                    this_label = label - 1  # labels to 0 - 5
-                    if this_label not in ignore_classes:
-                        this_label = label_map[this_label]  # remap after ignore classes
-                        class_labels.append(this_label)
-                        transformed_bbox = LizardDetectionDataset._transform_bounding_box(bounding_box, position)
-                        bounding_boxes.append(transformed_bbox)
+
+            image_label_data = LizardDetectionDataset._filter_and_transform_all_label_data(
+                all_label_data, position, image_size
+            )
+
+            for label, bounding_box in zip(image_label_data[:, 0], image_label_data[:, 1:]):
+                if label not in ignore_classes:
+                    label = label_map[label]  # remap after ignore classes
+                    class_labels.append(label)
+                    bounding_boxes.append(bounding_box)
 
             if bounding_boxes:
                 bounding_boxes = np.array(bounding_boxes, dtype=np.float32)
@@ -265,6 +290,13 @@ class LizardDetectionDataset(Dataset):
 
     @staticmethod
     def _load_all_label_data(data_dir: Path, sample_name: str):
+        """
+        Returns all label data of an image with shape (NUM_SAMPLES, 5) in form (classlabel, min_y, min_x, max_y, max_x)
+
+        :param data_dir: The data directory to load labels from
+        :param sample_name: The name of the sample to load
+        :return: label data of the sample
+        """
         label_path = data_dir / LABELS_DIR / '{}.mat'.format(sample_name)
         label_data = sio.loadmat(str(label_path))
 
@@ -279,7 +311,14 @@ class LizardDetectionDataset(Dataset):
             # bounding box
             bounding_box = label_data['bbox'][idx]
             instance_class = label_data['class'][idx][0]  # checked. Is always a list with exactly one element.
-            all_label_data.append((instance_class, bounding_box))
+            assert instance_class >= 1
+            all_label_data.append((instance_class - 1, *bounding_box))  # label -1 to have labels 0 - 5
+        all_label_data = np.array(all_label_data)
+        all_label_data = all_label_data[:, (0, 1, 3, 2, 4)]  # resort to (y, x, y, x)
+
+        assert np.all(all_label_data[:, 1] < all_label_data[:, 3])
+        assert np.all(all_label_data[:, 2] < all_label_data[:, 4])
+
         return all_label_data
 
     def read_image(self, image_path):

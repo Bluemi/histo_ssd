@@ -16,7 +16,7 @@ from utils.clock import Clock
 from utils.funcs import debug, draw_boxes
 
 
-SHOW_IMAGE = False
+SHOW_IMAGE = True
 
 
 def main():
