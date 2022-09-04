@@ -3,6 +3,6 @@ variables:
     network_arch: "VGG16"
 hyperparameters:
   backbone_arch: "vgg16"
-  image_size: 300
+  model_image_size: 300
   pretrained: true
   warmup_batches: 300

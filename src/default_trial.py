@@ -99,16 +99,16 @@ class DefaultTrial(PyTorchTrial):
         :return: Tuple with (train_dataset, validation_dataset)
         """
         dataset_name = self.context.get_hparam('dataset')
-        image_size = self.context.get_hparams().get('image_size', 224)
-        image_stride = self.context.get_hparams().get('image_stride', image_size)
+        dataset_image_size = self.context.get_hparams().get('dataset_image_size', 224)
+        image_stride = self.context.get_hparams().get('image_stride', dataset_image_size)
         if isinstance(image_stride, float):
-            image_stride = round(image_size * image_stride)
+            image_stride = round(dataset_image_size * image_stride)
         force_one_class = self.context.get_hparams().get('force_one_class', False)
 
         print('loading \"{}\" dataset...'.format(dataset_name))
         if dataset_name == 'lizard':
             dataset = LizardDetectionDataset.from_avocado(
-                image_size=np.array([image_size, image_size]),
+                image_size=np.array([dataset_image_size, dataset_image_size]),
                 image_stride=np.array([image_stride, image_stride]),
                 use_cache=True,
                 show_progress=False,
@@ -122,11 +122,11 @@ class DefaultTrial(PyTorchTrial):
             dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
             dataset_train = BananasDataset(
                 data_dir=dataset_location, is_train=True, verbose=False,
-                transforms=[torchvision.transforms.Resize((image_size, image_size))]
+                transforms=[torchvision.transforms.Resize((dataset_image_size, dataset_image_size))]
             )
             dataset_val = BananasDataset(
                 data_dir=dataset_location, is_train=False, verbose=False,
-                transforms=[torchvision.transforms.Resize((image_size, image_size))]
+                transforms=[torchvision.transforms.Resize((dataset_image_size, dataset_image_size))]
             )
             datasets = (dataset_train, dataset_val)
         else:
@@ -328,6 +328,11 @@ class DefaultTrial(PyTorchTrial):
             transforms.append(
                 (None, RandomFlip())
             )
+
+        model_image_size = self.context.get_hparam('model_image_size')
+        transforms.append(
+            ('image', torchvision.transforms.Resize((model_image_size, model_image_size)))
+        )
 
         dataset = AugmentationWrapper(
             self.train_dataset,

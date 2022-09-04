@@ -1,0 +1,5 @@
+variables:
+  description:
+    action: 'scale up'
+hyperparameters:
+  dataset_image_size: 150
