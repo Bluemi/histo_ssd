@@ -276,6 +276,12 @@ class DefaultTrial(PyTorchTrial):
             batch_output = predict(
                 anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=pos_threshold
             )
+
+            # check num outputs
+            for out in batch_output:
+                if len(out) > 700:
+                    print('WARN: got output with {} predictions'.format(len(out)))
+
             last_predict_duration = predict_clock.get_duration()
             if self.use_clock:
                 predict_clock.stop_and_print('predict took {} seconds')
