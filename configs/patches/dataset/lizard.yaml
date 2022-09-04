@@ -6,3 +6,4 @@ hyperparameters:
   dataset_split_size: 0.8
   num_workers: 16
   force_one_class: false
+  dataset_image_size: 300

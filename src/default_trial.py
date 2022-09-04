@@ -125,11 +125,9 @@ class DefaultTrial(PyTorchTrial):
             dataset_location = '/data/ldap/histopathologic/original_read_only/banana-detection'
             dataset_train = BananasDataset(
                 data_dir=dataset_location, is_train=True, verbose=False,
-                transforms=[torchvision.transforms.Resize((self.dataset_image_size, self.dataset_image_size))]
             )
             dataset_val = BananasDataset(
                 data_dir=dataset_location, is_train=False, verbose=False,
-                transforms=[torchvision.transforms.Resize((self.dataset_image_size, self.dataset_image_size))]
             )
             datasets = (dataset_train, dataset_val)
         else:

@@ -27,9 +27,8 @@ def read_data_bananas(data_dir: str, is_train=True, verbose=True):
 
 class BananasDataset(torch.utils.data.Dataset):
     """A customized dataset to load the banana detection dataset."""
-    def __init__(self, data_dir: str, is_train, verbose=True, transforms=None):
+    def __init__(self, data_dir: str, is_train, verbose=True):
         self.features, self.labels = read_data_bananas(data_dir, is_train, verbose=verbose)
-        self.transforms = transforms or []
         if verbose:
             print('read ' + str(len(self.features)) + (f' training examples' if is_train else f' validation examples'))
 
@@ -42,8 +41,6 @@ class BananasDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         image = self.features[idx].float()
-        for transform in self.transforms:
-            image = transform(image)
         return {
             'image': image,
             'boxes': self.labels[idx],

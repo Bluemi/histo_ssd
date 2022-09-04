@@ -3,3 +3,4 @@ variables:
     dataset: "Banana"
 hyperparameters:
   dataset: "banana"
+  dataset_image_size: 256
