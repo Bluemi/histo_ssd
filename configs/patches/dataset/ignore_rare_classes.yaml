@@ -1,5 +1,5 @@
 variables:
   description:
-    action: "- Ignore Rare Classes"
+    irc: "(IRC)"
 hyperparameters:
   ignore_classes: '0,4'

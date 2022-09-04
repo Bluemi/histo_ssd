@@ -1,6 +1,6 @@
 variables:
   description:
-    action: "- Test Small Sizes"
+    action: "Test Small Sizes"
 hyperparameters:
   min_anchor_size:
     type: double

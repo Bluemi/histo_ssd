@@ -48,6 +48,7 @@ def main():
         'description': {
             'augmentation': 'no augmentation',
             'action': 'test',
+            'irc': '',
         }
     }
     for patch in args.patches:

@@ -1,6 +1,6 @@
 variables:
   description:
-    action: "- hparam-hopt"
+    action: "hparam-hopt"
 hyperparameters:
   learning_rate:
     type: log

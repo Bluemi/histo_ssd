@@ -1,6 +1,6 @@
 variables:
   description:
-    action: "- Test Long"
+    action: "Test Long"
 min_validation_period:
   batches: 400
 searcher:

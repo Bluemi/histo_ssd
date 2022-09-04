@@ -36,13 +36,13 @@ case "$1" in
 
 			# p/augmentation/test_rotate_flip.yaml
 			# p/hparams/lr_narrow.yaml
-			p/hparams/lr.yaml
+			# p/hparams/lr.yaml
 			# p/hparams/sizes_small.yaml
 			# p/hparams/negative_ratio_narrow.yaml
 			# p/hparams/image_stride.yaml
 			# p/hparams/smoothl1.yaml
 			# p/hparams/nms_threshold.yaml
-			p/hparams/bbox_loss_scale.yaml
+			# p/hparams/bbox_loss_scale.yaml
 
 			p/metrics/loss.yaml
 			# p/metrics/map.yaml
