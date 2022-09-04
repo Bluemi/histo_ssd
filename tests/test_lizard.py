@@ -24,8 +24,8 @@ def main():
     ignore_classes = None
     dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
-        image_size=np.array([300, 300]),
-        image_stride=np.array([300, 300]),
+        image_size=np.array([150, 150]),
+        image_stride=np.array([75, 75]),
         use_cache=True,
         show_progress=True,
         ignore_classes=ignore_classes,
