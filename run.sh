@@ -57,7 +57,7 @@ case "$1" in
 			# p/checkpointing/load_checkpoint.yaml
 
 			# p/searcher/adaptive_asha.yaml
-			p/searcher/adaptive_asha_few.yaml
+			p/searcher/adaptive_asha.yaml
 			# p/searcher/random.yaml
 
 			p/profiling/clock.yaml
