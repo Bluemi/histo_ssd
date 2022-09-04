@@ -246,7 +246,9 @@ class DefaultTrial(PyTorchTrial):
         batch_idx = self.context._current_batch_idx + 1
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
 
-        mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=self.enable_class_metrics)
+        mean_average_precision = MeanAveragePrecision(
+            box_format='xyxy', class_metrics=self.enable_class_metrics, max_detection_thresholds=[3, 30, 300],
+        )
 
         image_counter = 0
         mean_average_precision_counter = 0
