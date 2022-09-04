@@ -61,7 +61,7 @@ class DefaultTrial(PyTorchTrial):
         if self.pretrained:
             model = SSDModel.from_state_dict(
                 state_dict_path='DOWNLOAD', num_classes=self.num_classes, backbone_arch=backbone_arch,
-                min_anchor_size=smin, max_anchor_size=smax, freeze_pretrained=True
+                min_anchor_size=smin, max_anchor_size=smax, freeze_pretrained=False
             )
         else:
             model = SSDModel(
