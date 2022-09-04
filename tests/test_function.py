@@ -4,7 +4,8 @@ from torch.utils.data import DataLoader
 
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
-from utils.bounding_boxes import multibox_target, generate_random_boxes, intersection_over_union
+from utils.bounding_boxes import multibox_target, generate_random_boxes, intersection_over_union, \
+    non_maximum_suppression
 from utils.funcs import debug
 
 BATCH_SIZE = 3
@@ -49,15 +50,15 @@ def main():
         break
 
 
-def test_iou():
-    from torchvision import ops
-    boxes1 = generate_random_boxes(800)
-    boxes2 = generate_random_boxes(800)
-    iou1 = intersection_over_union(boxes1, boxes2)
-    iou2 = ops.box_iou(boxes1, boxes2)
-    print('close:', torch.allclose(iou1, iou2))
+def test_nms():
+    N = 800
+    boxes = generate_random_boxes(N)
+    scores = torch.rand(N)
+    for iou_threshold in [0.3, 0.5, 0.7]:
+        keep_indices = non_maximum_suppression(boxes, scores, iou_threshold=iou_threshold)
+        print('iou_t = {}: {} boxes'.format(iou_threshold, keep_indices.shape[0]))
 
 
 if __name__ == '__main__':
     # main()
-    test_iou()
+    test_nms()

@@ -260,7 +260,7 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
        examples to 1.0
     3. The class labels of the anchor boxes with shape [BATCH_SIZE, NUM_ANCHOR_BOXES]
 
-    :param anchors: List of anchor boxes with shape [NUM_ANCHOR_BOXES, 4] in tlbr-format.
+    :param anchors: List of anchor boxes with shape [1, NUM_ANCHOR_BOXES, 4] in tlbr-format.
     :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
                    The 5 comes from (classlabel, t, l, b, r). If the classlabel is -1, the sample will be ignored.
 
@@ -304,11 +304,13 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
 
 def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_threshold: float) -> torch.Tensor:
     """
-    Removes bounding boxes with non-maximum score.
+    Calculate indices of boxes that do not overlap. Remove indices of boxes with lesser conf scores.
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
 
     :param boxes: The predicted boxes with shape (NUM_BOXES, 4)
     :param scores: The scores of the given boxes with shape (NUM_BOXES,)
+    :param iou_threshold: Remove boxes that overlap more than the given iou threshold. The smaller the threshold,
+                          the fewer boxes are kept.
     """
     score_indices = torch.argsort(scores, dim=-1, descending=True)
     keep = []  # Indices of predicted bounding boxes that will be kept
@@ -326,7 +328,7 @@ def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_thres
 
 
 def multibox_detection(
-        cls_probs: torch.Tensor, offset_preds: torch.Tensor, anchors: torch.Tensor, nms_threshold: float = 0.5,
+        cls_probs: torch.Tensor, offset_preds: torch.Tensor, anchors: torch.Tensor, nms_iou_threshold: float = 0.5,
         pos_threshold: float = 0.009999999
 ) -> List[torch.Tensor]:
     """
@@ -340,7 +342,8 @@ def multibox_detection(
     :param cls_probs: The predicted class probabilities with shape (BATCH_SIZE, NUM_CLASSES, NUM_ANCHOR_BOXES)
     :param offset_preds: The predicted offsets with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
     :param anchors: The anchor boxes which was predicted with shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 4)
-    :param nms_threshold: The threshold nms uses to identify overlapping boxes.
+    :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
+                              The smaller the threshold, the fewer boxes are kept.
     :param pos_threshold: A threshold uses for to low confidences.
     """
     device, batch_size = cls_probs.device, cls_probs.shape[0]
@@ -359,7 +362,7 @@ def multibox_detection(
         num_anchors = filtered_anchors.shape[0]
 
         predicted_bb = offset_inverse(filtered_anchors, offset_pred)
-        keep = non_maximum_suppression(predicted_bb, conf, nms_threshold)
+        keep = non_maximum_suppression(predicted_bb, conf, nms_iou_threshold)
 
         # Find all non-`keep` indices and set the class to background
         all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)

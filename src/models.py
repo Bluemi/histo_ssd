@@ -522,7 +522,7 @@ class SSDModel(nn.Module):
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Takes a batch of images and returns a tuple with three elements:
-        1. anchor boxes: A tensor with shape [NUM_ANCHORS, 4] in ltrb-format
+        1. anchor boxes: A tensor with shape [1, NUM_ANCHORS, 4] in ltrb-format
         2. class predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
         3. bbox predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4]
 
@@ -555,17 +555,20 @@ class SSDModel(nn.Module):
 
 
 def predict(
-        anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_threshold=0.5, pos_threshold=0.2
+        anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_iou_threshold=0.5, pos_threshold=0.2
 ) -> List[torch.Tensor]:
     """
     Uses the given model to predict boxes for the given batch of images.
 
     Taken from https://d2l.ai/chapter_computer-vision/ssd.html#prediction
 
+    :param anchors: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, 4]
     :param cls_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
     :param bbox_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4]
     :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
-    :param nms_threshold: The iou threshold to suppress overlapping predictions with non-maximum suppression.
+    :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
+                              The smaller the threshold, the fewer boxes are kept.
+    :param pos_threshold: Remove predictions with confidence smaller the pos_threshold.
 
     :return: A list with BATCH_SIZE entries. Each entry is a torch.Tensor with shape (NUM_PREDICTIONS, 6).
              Each entry of these tensors consists of (class_label, confidence, left, top, right, bottom).
@@ -573,7 +576,7 @@ def predict(
     # anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
     output = multibox_detection(
-        cls_probs, bbox_preds, anchors, nms_threshold=nms_threshold, pos_threshold=pos_threshold
+        cls_probs, bbox_preds, anchors, nms_iou_threshold=nms_iou_threshold, pos_threshold=pos_threshold
     )
 
     # filter out background and low confidences

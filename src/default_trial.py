@@ -271,7 +271,7 @@ class DefaultTrial(PyTorchTrial):
             if self.enable_full_evaluation:
                 pos_threshold = 0.2
             batch_output = predict(
-                anchors, cls_preds, bbox_preds, nms_threshold=self.nms_threshold, pos_threshold=pos_threshold
+                anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=pos_threshold
             )
             last_predict_duration = predict_clock.get_duration()
             if self.use_clock:
