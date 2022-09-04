@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
+from torchvision.ops.boxes import _box_inter_union
 
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
@@ -9,6 +10,7 @@ from utils.bounding_boxes import multibox_target, generate_random_boxes, interse
 from utils.clock import Clock
 from utils.funcs import debug
 from torchvision import ops
+from tqdm import tqdm
 
 BATCH_SIZE = 3
 NUM_CLASSES = 6
@@ -105,23 +107,84 @@ def jaccard(box_a, box_b):
     return inter / union  # [A,B]
 
 
+def intersection_over_union_grid(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
+    L = 0; T = 1; R = 2; B = 3
+
+    # clock = Clock()
+
+    # iboxes1[i] yields the smallest grid-cell-box wrapping it
+    # iboxes1 = torch.clamp(boxes1, min=0, max=1.0-0.0001).int()
+    # iboxes2 = torch.clamp(boxes2, min=0, max=1.0-0.0001).int()
+
+    # clock.stop_and_print('init: {} seconds')
+
+    iou = torch.zeros((boxes1.shape[0], boxes2.shape[0]))
+    grid1 = [[0, 0], [0, 0]]
+    grid2 = [[0, 0], [0, 0]]
+    # clock.stop_and_print('create grid: {} seconds')
+
+    # grid1[x][y] contains the indices of the boxes1 intersecting that quadrant.
+    # grid1[0][0] is left-top
+    grid1[0][0] = torch.nonzero(torch.logical_and(boxes1[:, L] <= 0.5, boxes1[:, T] <= 0.5))
+    grid1[0][1] = torch.nonzero(torch.logical_and(boxes1[:, L] <= 0.5, boxes1[:, B] >= 0.5))
+    grid1[1][0] = torch.nonzero(torch.logical_and(boxes1[:, R] >= 0.5, boxes1[:, T] <= 0.5))
+    grid1[1][1] = torch.nonzero(torch.logical_and(boxes1[:, R] >= 0.5, boxes1[:, B] >= 0.5))
+
+    grid2[0][0] = torch.nonzero(torch.logical_and(boxes2[:, L] <= 0.5, boxes2[:, T] <= 0.5))
+    grid2[0][1] = torch.nonzero(torch.logical_and(boxes2[:, L] <= 0.5, boxes2[:, B] >= 0.5))
+    grid2[1][0] = torch.nonzero(torch.logical_and(boxes2[:, R] >= 0.5, boxes2[:, T] <= 0.5))
+    grid2[1][1] = torch.nonzero(torch.logical_and(boxes2[:, R] >= 0.5, boxes2[:, B] >= 0.5))
+
+    # clock.stop_and_print('fill grid: {} seconds')
+
+    for x in range(2):
+        for y in range(2):
+            grid1[x][y] = torch.squeeze(grid1[x][y])
+            grid2[x][y] = torch.squeeze(grid2[x][y])
+            ij_pairs = torch.cartesian_prod(grid1[x][y], grid2[x][y])
+            box1 = boxes1[ij_pairs[:, 0]]
+            box2 = boxes2[ij_pairs[:, 1]]
+
+            left = torch.maximum(box1[:, L], box2[:, L])
+            right = torch.minimum(box1[:, R], box2[:, R])
+            top = torch.maximum(box1[:, T], box2[:, T])
+            bot = torch.minimum(box1[:, B], box2[:, B])
+            z = torch.tensor(0.0)
+            intersection_area = torch.maximum(z, right - left) * torch.maximum(z, bot-top)
+            box1_area = (box1[:, R] - box1[:, L]) * (box1[:, B] - box1[:, T])
+            box2_area = (box2[:, R] - box2[:, L]) * (box2[:, B] - box2[:, T])
+            results = intersection_area / (box1_area + box2_area - intersection_area)
+
+            iou[ij_pairs[:, 0], ij_pairs[:, 1]] = results
+    # clock.stop_and_print('iou {} seconds')
+
+    return iou
+
+
+def torch_part(boxes1, boxes2):
+    inter, union = _box_inter_union(boxes1, boxes2)
+    iou = inter / union
+    return iou
+
+
 def test_iou():
-    boxes1 = generate_random_boxes(500, min_size=0.02, max_size=0.04)
-    boxes2 = generate_random_boxes(500, min_size=0.02, max_size=0.04)
+    boxes1 = generate_random_boxes(5000, min_size=0.02, max_size=0.04)
+    boxes2 = generate_random_boxes(5000, min_size=0.02, max_size=0.04)
     # debug(torch.mean(boxes1-boxes2))
     clock = Clock()
     # iou_new = intersection_over_union2(boxes1, boxes2)
     # clock.stop_and_print('new: {} seconds')
-    fs = [intersection_over_union, intersection_over_union2, box_iou, ops.box_iou]
+    fs = [intersection_over_union, box_iou, ops.box_iou, intersection_over_union_grid, torch_part]
     results = []
     iou_compare = ops.box_iou(boxes1, boxes2)
-    for f in fs:
+    for f in tqdm(fs):
+        print('check', f.__name__)
         clock = Clock()
         iou = None
-        for _ in range(1000):
-            iou = intersection_over_union(boxes1, boxes2)
-        assert torch.allclose(iou, iou_compare)
+        for _ in range(10):
+            iou = f(boxes1, boxes2)
         duration = clock.stop()
+        assert torch.allclose(iou, iou_compare)
         results.append((f.__name__, duration))
 
     for result in results:
