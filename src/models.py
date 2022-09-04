@@ -669,6 +669,13 @@ class SSDModel(nn.Module):
         for layer in self.parameters():
             layer.requires_grad = True
 
+    def freeze_backbone(self):
+        """
+        Freezes all backbone layers.
+        """
+        for layer in self.backbone.parameters():
+            layer.requires_grad = False
+
     def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Takes a batch of images and returns a tuple with three elements:

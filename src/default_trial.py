@@ -19,7 +19,6 @@ from utils.funcs import draw_boxes
 from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
-DEFAULT_WARMUP_BATCHES = 300
 WRITE_PREDICTIONS_BATCH = 2900
 MAX_MAP_UPDATES = 400  # only use some samples for mean average precision update
 
@@ -41,7 +40,7 @@ class DefaultTrial(PyTorchTrial):
         smin = self.context.get_hparams().get('min_anchor_size', 0.2)
         smax = self.context.get_hparams().get('max_anchor_size', 0.9)
         self.pretrained = self.context.get_hparams().get('pretrained', False)
-        self.warmup_batches = self.context.get_hparams().get('warmup_batches', DEFAULT_WARMUP_BATCHES)
+        self.warmup_batches = self.context.get_hparams().get('warmup_batches')
         self.enable_class_metrics = self.context.get_hparams().get('enable_class_metrics', False)
         self.use_clock = self.context.get_hparams().get('use_clock', False)
         ignore_classes = self.context.get_hparams().get('ignore_classes')
@@ -69,7 +68,11 @@ class DefaultTrial(PyTorchTrial):
                 num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
             )
 
-        self.model = self.context.wrap_model(model)
+        # noinspection PyTypeChecker
+        self.model: SSDModel = self.context.wrap_model(model)
+
+        if self.pretrained:
+            self.model.freeze_backbone()
 
         # optimizer
         if optimizer_name == 'sgd':
