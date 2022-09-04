@@ -60,8 +60,8 @@ case "$1" in
 			# p/searcher/adaptive_asha_few.yaml
 			# p/searcher/random.yaml
 
-			p/profiling/clock.yaml
-			)
+			# p/profiling/clock.yaml
+		)
 
 		base_config="./configs/base_config.yaml"
 		base_config="./configs/scale_up_config.yaml"
