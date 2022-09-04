@@ -1,0 +1,8 @@
+variables:
+  description:
+    network_arch: "VGG16-e"
+hyperparameters:
+  backbone_arch: "vgg16early"
+  image_size: 300
+  pretrained: true
+  warmup_batches: 300

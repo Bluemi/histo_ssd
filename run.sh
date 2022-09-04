@@ -27,12 +27,15 @@ case "$1" in
 			shift
 		fi
 		patches=(
-			p/cluster/pepper.yaml
+			# p/cluster/pepper.yaml
+			p/cluster/pepper_few.yaml
 			# p/cluster/dt.yaml
 
 			p/dataset/lizard.yaml
 			p/dataset/ignore_rare_classes.yaml
-			p/model/vgg16.yaml
+
+			# p/model/vgg16.yaml
+			p/model/vgg16early.yaml
 
 			# p/augmentation/test_rotate_flip.yaml
 			# p/hparams/lr_narrow.yaml
@@ -44,18 +47,18 @@ case "$1" in
 			p/hparams/nms_threshold.yaml
 			# p/hparams/bbox_loss_scale.yaml
 
-			# p/metrics/loss.yaml
-			p/metrics/map.yaml
+			p/metrics/loss.yaml
+			# p/metrics/map.yaml
 			p/metrics/write_predictions.yaml
 
-			# p/checkpointing/save_checkpoints.yaml
-			p/checkpointing/load_checkpoint.yaml
+			p/checkpointing/save_checkpoints.yaml
+			# p/checkpointing/load_checkpoint.yaml
 
 			# p/searcher/adaptive_asha.yaml
 			p/searcher/adaptive_asha_few.yaml
 			# p/searcher/random.yaml
 
-			# p/profiling/clock.yaml
+			p/profiling/clock.yaml
 			)
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "${patches[@]}"
 		;;

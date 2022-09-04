@@ -2,7 +2,6 @@ from typing import Tuple, Dict, Any, List
 import numpy as np
 import torch
 import torchvision
-import torch.nn.functional as functional
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.utils.data import Dataset
 from torchmetrics.detection import MeanAveragePrecision
