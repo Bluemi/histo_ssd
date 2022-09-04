@@ -310,16 +310,18 @@ def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_thres
     :param boxes: The predicted boxes with shape (NUM_BOXES, 4)
     :param scores: The scores of the given boxes with shape (NUM_BOXES,)
     """
-    b = torch.argsort(scores, dim=-1, descending=True)
+    score_indices = torch.argsort(scores, dim=-1, descending=True)
     keep = []  # Indices of predicted bounding boxes that will be kept
-    while b.numel() > 0:
-        i = b[0]
-        keep.append(i)
-        if b.numel() == 1:
+    while score_indices.numel() > 0:
+        best_score_index = score_indices[0]
+        keep.append(best_score_index)
+        if score_indices.numel() == 1:
             break
-        iou = intersection_over_union(boxes[i, :].reshape(-1, 4), boxes[b[1:], :].reshape(-1, 4)).reshape(-1)
+        iou = intersection_over_union(
+            boxes[best_score_index, :].reshape(-1, 4), boxes[score_indices[1:], :].reshape(-1, 4)
+        ).reshape(-1)
         indices = torch.nonzero(iou <= iou_threshold).reshape(-1)
-        b = b[indices + 1]
+        score_indices = score_indices[indices + 1]
     return torch.tensor(keep, device=boxes.device, dtype=torch.int64)
 
 
