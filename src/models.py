@@ -11,7 +11,7 @@ from utils.bounding_boxes import create_anchor_boxes, multibox_detection
 
 RELU_INPLACE = False
 
-KEY_MAPPING = OrderedDict([
+VGG16_KEY_MAPPING = OrderedDict([
     ('backbone.blocks.0.0.weight', 'backbone.features.0.weight'),
     ('backbone.blocks.0.0.bias', 'backbone.features.0.bias'),
     ('backbone.blocks.0.2.weight', 'backbone.features.2.weight'),
@@ -58,6 +58,56 @@ KEY_MAPPING = OrderedDict([
     ('backbone.blocks.5.0.bias', 'backbone.extra.4.0.bias'),
     ('backbone.blocks.5.2.weight', 'backbone.extra.4.2.weight'),
     ('backbone.blocks.5.2.bias', 'backbone.extra.4.2.bias'),
+])
+
+
+VGG16_EARLY_KEY_MAPPING = OrderedDict([
+    ('backbone.blocks.0.0.weight', 'backbone.features.0.weight'),
+    ('backbone.blocks.0.0.bias', 'backbone.features.0.bias'),
+    ('backbone.blocks.0.2.weight', 'backbone.features.2.weight'),
+    ('backbone.blocks.0.2.bias', 'backbone.features.2.bias'),
+    ('backbone.blocks.0.5.weight', 'backbone.features.5.weight'),
+    ('backbone.blocks.0.5.bias', 'backbone.features.5.bias'),
+    ('backbone.blocks.0.7.weight', 'backbone.features.7.weight'),
+    ('backbone.blocks.0.7.bias', 'backbone.features.7.bias'),
+    ('backbone.blocks.0.10.weight', 'backbone.features.10.weight'),
+    ('backbone.blocks.0.10.bias', 'backbone.features.10.bias'),
+    ('backbone.blocks.0.12.weight', 'backbone.features.12.weight'),
+    ('backbone.blocks.0.12.bias', 'backbone.features.12.bias'),
+    ('backbone.blocks.0.14.weight', 'backbone.features.14.weight'),
+    ('backbone.blocks.0.14.bias', 'backbone.features.14.bias'),
+    ('backbone.blocks.1.1.weight', 'backbone.features.17.weight'),
+    ('backbone.blocks.1.1.bias', 'backbone.features.17.bias'),
+    ('backbone.blocks.1.3.weight', 'backbone.features.19.weight'),
+    ('backbone.blocks.1.3.bias', 'backbone.features.19.bias'),
+    ('backbone.blocks.1.5.weight', 'backbone.features.21.weight'),
+    ('backbone.blocks.1.5.bias', 'backbone.features.21.bias'),
+    ('backbone.blocks.2.1.weight', 'backbone.extra.0.1.weight'),
+    ('backbone.blocks.2.1.bias', 'backbone.extra.0.1.bias'),
+    ('backbone.blocks.2.3.weight', 'backbone.extra.0.3.weight'),
+    ('backbone.blocks.2.3.bias', 'backbone.extra.0.3.bias'),
+    ('backbone.blocks.2.5.weight', 'backbone.extra.0.5.weight'),
+    ('backbone.blocks.2.5.bias', 'backbone.extra.0.5.bias'),
+    ('backbone.blocks.2.7.1.weight', 'backbone.extra.0.7.1.weight'),
+    ('backbone.blocks.2.7.1.bias', 'backbone.extra.0.7.1.bias'),
+    ('backbone.blocks.2.7.3.weight', 'backbone.extra.0.7.3.weight'),
+    ('backbone.blocks.2.7.3.bias', 'backbone.extra.0.7.3.bias'),
+    ('backbone.blocks.3.0.weight', 'backbone.extra.1.0.weight'),
+    ('backbone.blocks.3.0.bias', 'backbone.extra.1.0.bias'),
+    ('backbone.blocks.3.2.weight', 'backbone.extra.1.2.weight'),
+    ('backbone.blocks.3.2.bias', 'backbone.extra.1.2.bias'),
+    ('backbone.blocks.4.0.weight', 'backbone.extra.2.0.weight'),
+    ('backbone.blocks.4.0.bias', 'backbone.extra.2.0.bias'),
+    ('backbone.blocks.4.2.weight', 'backbone.extra.2.2.weight'),
+    ('backbone.blocks.4.2.bias', 'backbone.extra.2.2.bias'),
+    ('backbone.blocks.5.0.weight', 'backbone.extra.3.0.weight'),
+    ('backbone.blocks.5.0.bias', 'backbone.extra.3.0.bias'),
+    ('backbone.blocks.5.2.weight', 'backbone.extra.3.2.weight'),
+    ('backbone.blocks.5.2.bias', 'backbone.extra.3.2.bias'),
+    ('backbone.blocks.6.0.weight', 'backbone.extra.4.0.weight'),
+    ('backbone.blocks.6.0.bias', 'backbone.extra.4.0.bias'),
+    ('backbone.blocks.6.2.weight', 'backbone.extra.4.2.weight'),
+    ('backbone.blocks.6.2.bias', 'backbone.extra.4.2.bias'),
 ])
 
 
@@ -352,6 +402,93 @@ class Backbone(nn.Module):
         return Backbone(blocks=blocks, debug=debug)
 
     @staticmethod
+    def ssd_vgg16_early(debug=False):
+        blocks = [
+            # features
+            nn.Sequential(
+                nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+                nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+                nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+            ),
+            nn.Sequential(
+                # NEW EXTRA BLOCK FROM FIRST BLOCK
+                # patching ceil_mode to get original paper shape
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=True),
+                nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1, stride=1),
+                nn.ReLU(inplace=RELU_INPLACE),
+            ),
+
+            # first extra layer, fc6 and fc7
+            nn.Sequential(
+                # first extra layer
+                nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(512, 512, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Sequential(
+                    nn.MaxPool2d(kernel_size=3, stride=1, padding=1, dilation=1, ceil_mode=False),
+                    # fc6, atrous
+                    nn.Conv2d(512, 1024, kernel_size=(3, 3), stride=(1, 1), padding=(6, 6), dilation=(6, 6)),
+                    nn.ReLU(inplace=RELU_INPLACE),
+                    # fc7
+                    nn.Conv2d(1024, 1024, kernel_size=(1, 1), stride=(1, 1)),
+                    nn.ReLU(inplace=RELU_INPLACE),
+                )
+            ),
+            # extra feature layer 1
+            nn.Sequential(
+                nn.Conv2d(1024, 256, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(256, 512, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+            ),
+            # extra feature layer 2
+            nn.Sequential(
+                nn.Conv2d(512, 128, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+            ),
+            # extra feature layer 3
+            nn.Sequential(
+                nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+            ),
+            # extra feature layer 4
+            nn.Sequential(
+                nn.Conv2d(256, 128, kernel_size=(1, 1), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+                nn.Conv2d(128, 256, kernel_size=(3, 3), stride=(1, 1)),
+                nn.ReLU(inplace=RELU_INPLACE),
+            )
+        ]
+        return Backbone(blocks=blocks, debug=debug)
+
+    @staticmethod
     def tiny_base_net(debug=False):
         """
         Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
@@ -421,6 +558,8 @@ class SSDModel(nn.Module):
             backbone = Backbone.tiny_base_net(debug)
         elif backbone_arch == 'vgg16':
             backbone = Backbone.ssd_vgg16(debug)
+        elif backbone_arch == 'vgg16early':
+            backbone = Backbone.ssd_vgg16_early(debug)
         else:
             raise ValueError('Unknown backbone architecture: \"{}\"'.format(backbone_arch))
 
@@ -448,13 +587,13 @@ class SSDModel(nn.Module):
 
         :param state_dict_path: The path to load. If DOWNLOAD the model will be downloaded on the fly.
         :param num_classes: The number of classes to predict with this model
-        :param backbone_arch: The backbone architecture. One of ["tiny", "vgg16"]
+        :param backbone_arch: The backbone architecture. One of ["tiny", "vgg16", "vgg16early"]
         :param min_anchor_size: The minimum size of the anchor boxes
         :param max_anchor_size: The maximum size of the anchor boxes
         :param freeze_pretrained: If True, pretrained layers are frozen at the start.
         :param debug: Whether to print status information
         """
-        assert backbone_arch == 'vgg16', 'can only use pretrained vgg16'
+        assert backbone_arch in ('vgg16', 'vgg16early'), 'can only use pretrained vgg16'
         model = SSDModel(
             num_classes=num_classes,
             backbone_arch=backbone_arch,
@@ -478,13 +617,24 @@ class SSDModel(nn.Module):
 
         # rename keys
         new_state_dict = []
-        for new_key, old_key in KEY_MAPPING.items():
+        if backbone_arch == 'vgg16':
+            key_mapping = VGG16_KEY_MAPPING
+        elif backbone_arch == 'vgg16early':
+            key_mapping = VGG16_EARLY_KEY_MAPPING
+        else:
+            raise ValueError('loading not supported for: {}'.format(backbone_arch))
+
+        for new_key, old_key in key_mapping.items():
             new_state_dict.append(
                 (new_key, state_dict[old_key])
             )
         new_state_dict = OrderedDict(new_state_dict)
 
-        model.load_state_dict(new_state_dict, strict=False)
+        _missing, _unexpected = model.load_state_dict(new_state_dict, strict=False)
+        # print('missing:', missing)
+        # print('unexpected:', unexpected)
+        # for mis, unex, in zip(missing, unexpected[1:]):
+        # print("('{}', '{}')".format(mis, unex))
 
         if freeze_pretrained:
             for layer_name, layer in model.named_parameters():

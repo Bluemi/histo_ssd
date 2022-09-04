@@ -10,6 +10,8 @@ from utils.funcs import draw_boxes, debug
 MODEL = 'tiny'
 # noinspection PyRedeclaration
 MODEL = 'vgg16'
+# noinspection PyRedeclaration
+MODEL = 'vgg16early'
 
 if MODEL == 'tiny':
     LEVEL_SIZES = [32, 16, 8, 4, 1]
@@ -19,12 +21,21 @@ elif MODEL == 'vgg16':
     LEVEL_SIZES = [38, 19, 10, 5, 3, 1]
     NUM_BOXES_PER_PIXEL = 4
     IMAGE_SIZE = 300
+elif MODEL == 'vgg16early':
+    LEVEL_SIZES = [75, 38, 19, 10, 5, 3, 1]  # TODO
+    NUM_BOXES_PER_PIXEL = 4
+    IMAGE_SIZE = 300
+
 BATCH_SIZE = 1
-VERBOSE = True
+VERBOSE = False
 
 
 def main():
-    model = SSDModel(num_classes=1, debug=False, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
+    # model = SSDModel(num_classes=1, debug=False, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
+    model = SSDModel.from_state_dict(
+        state_dict_path='../ssd300_vgg16_coco-b556d3b4.pth', num_classes=1, debug=False, backbone_arch='vgg16early',
+        min_anchor_size=0.05, max_anchor_size=0.5
+    )
 
     model.eval()
 
@@ -82,5 +93,5 @@ def add_boxes(image, anchors, x, y, level, color=(255, 0, 0), num_boxes=4):
 
 
 if __name__ == '__main__':
-    # main()
-    test_torchvision()
+    main()
+    # test_torchvision()
