@@ -20,12 +20,12 @@ SHOW_IMAGE = False
 
 
 def main():
-    # ignore_classes = [0, 4]
-    ignore_classes = None
+    ignore_classes = [0, 4]
+    # ignore_classes = None
     whole_dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
         image_size=np.array([300, 300]),
-        image_stride=np.array([300, 300]),
+        image_stride=np.array([100, 100]),
         use_cache=True,
         show_progress=True,
         ignore_classes=ignore_classes,
@@ -39,6 +39,7 @@ def main():
 
     show_area_stats(whole_dataset)
     # show_images(whole_dataset)
+    # show_distributions(whole_dataset, train, validation)
 
 
 def wrap_dataset(dataset):
@@ -72,6 +73,7 @@ def show_images(dataset):
 
 
 def show_area_stats(dataset):
+    area_threshold = 0.028
     max_area = 0
     min_area = 1
     for i in range(len(dataset)):
@@ -82,12 +84,11 @@ def show_area_stats(dataset):
         box_areas = box_area(boxes[:, 1:])
         max_area = max(max_area, np.max(box_areas))
         min_area = min(min_area, np.min(box_areas))
-        if np.max(box_areas) > 0.5:
+        if np.max(box_areas) > area_threshold:
             for box in boxes:
                 this_box_area = box_area(box[None, 1:])
-                if this_box_area > 0.5:
-                    print(box)
-                    print('sample:', sample['sample_name'])
+                if this_box_area > area_threshold:
+                    print(this_box_area, sample['sample'])
             show_sample(image, boxes)
 
     print('min area:', min_area)

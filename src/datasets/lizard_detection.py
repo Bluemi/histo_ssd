@@ -36,6 +36,10 @@ def get_progress_func(show_progress: bool) -> Callable:
     return progress_function
 
 
+def _boxes_area(boxes):
+    return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+
+
 class Snapshot:
     """
     A Snapshot stands for a subregion in an image. It saves positional information and label information, but no image
@@ -43,18 +47,17 @@ class Snapshot:
     - The sample name: if the image file is named "images1/consep_10.png" the sample name is consep_10.
     - The image directory: either images1 or images2
     - The position of the subimage inside the image
+    - A ndarray of size [N, 5] containing class labels and bounding boxes inside this subimage
     - A ndarray of size [N, 4] containing bounding boxes inside this subimage
     - A ndarray of size [N] containing class labels corresponding to the bounding boxes
     """
     def __init__(
-        self, sample_name: str, image_directory: str, position: np.ndarray, bounding_boxes: np.ndarray,
-        class_labels: np.ndarray
+        self, sample_name: str, image_directory: str, position: np.ndarray, label_data: np.ndarray,
     ):
         self.sample_name = sample_name
         self.image_directory = Path(image_directory)
         self.position = position
-        self.bounding_boxes: np.ndarray = bounding_boxes
-        self.class_labels: np.ndarray = class_labels
+        self.label_data: np.ndarray = label_data
 
     def get_image_path(self) -> Path:
         return self.image_directory / f'{self.sample_name}.png'
@@ -115,7 +118,7 @@ class LizardDetectionDataset(Dataset):
         )
         max_boxes_per_snapshot = 0
         for snapshot in snapshots:
-            max_boxes_per_snapshot = max(snapshot.bounding_boxes.shape[0], max_boxes_per_snapshot)
+            max_boxes_per_snapshot = max(snapshot.label_data.shape[0], max_boxes_per_snapshot)
 
         return LizardDetectionDataset(
             snapshots=snapshots,
@@ -174,27 +177,47 @@ class LizardDetectionDataset(Dataset):
 
     @staticmethod
     def _filter_and_transform_all_label_data(all_label_data: np.ndarray, position, image_size) -> np.ndarray:
+        # NOTE: position is (y, x), but all_label_data is (c, x, y, x, y)
         bot_right = position + image_size
 
         # bbox top >= image top
-        included_indices = all_label_data[:, 1] >= position[0]
+        included_indices = all_label_data[:, 2] >= position[0]
 
         # bbox bot < image bot
-        included_indices = np.logical_and(included_indices, all_label_data[:, 3] < bot_right[0])
+        included_indices = np.logical_and(included_indices, all_label_data[:, 4] < bot_right[0])
 
         # bbox left >= image left
-        included_indices = np.logical_and(included_indices, all_label_data[:, 2] >= position[1])
+        included_indices = np.logical_and(included_indices, all_label_data[:, 1] >= position[1])
 
         # bbox right < image right
-        included_indices = np.logical_and(included_indices, all_label_data[:, 4] < bot_right[1])
+        included_indices = np.logical_and(included_indices, all_label_data[:, 3] < bot_right[1])
 
-        image_data = np.copy(all_label_data[included_indices])
+        image_data = all_label_data[included_indices].astype(np.float32)
 
         # subtract position to move to center
-        image_data[:, (1, 3)] -= position[0]
-        image_data[:, (2, 4)] -= position[1]
+        image_data[:, (1, 3)] -= position[1]
+        image_data[:, (2, 4)] -= position[0]
+
+        # format to relative
+        image_data[:, (1, 3)] /= float(image_size[1])
+        image_data[:, (2, 4)] /= float(image_size[0])
 
         return image_data
+
+    @staticmethod
+    def _remap_ignored_classes(all_label_data, ignore_classes):
+        # maps class labels to new class labels
+        label_map = list(range(len(LABELS) - len(ignore_classes)))
+        for ignore_class in sorted(ignore_classes, reverse=False):
+            label_map.insert(ignore_class, None)
+
+        # remove ignored classes
+        for old_label, new_label in enumerate(label_map):
+            if new_label is None:  # remove class
+                all_label_data = all_label_data[all_label_data[:, 0] != old_label]
+            else:
+                old_label_indices = all_label_data[:, 0] == old_label
+                all_label_data[old_label_indices, 0] = new_label  # map to new label
 
     @staticmethod
     def _snapshots_from_image_file(
@@ -211,31 +234,16 @@ class LizardDetectionDataset(Dataset):
         all_label_data = LizardDetectionDataset._load_all_label_data(data_dir, sample_name)
 
         # maps class labels to new class labels
-        label_map = list(range(10))
-        for ignore_class in sorted(ignore_classes, reverse=False):
-            label_map.insert(ignore_class, None)
+        LizardDetectionDataset._remap_ignored_classes(all_label_data, ignore_classes)
 
         # iterate as long as right-bottom corner of subimage is in bounds of full_image_size
         while (position + image_size <= full_image_size).all():
-            bounding_boxes = []
-            class_labels = []
-
             image_label_data = LizardDetectionDataset._filter_and_transform_all_label_data(
                 all_label_data, position, image_size
             )
 
-            for label, bounding_box in zip(image_label_data[:, 0], image_label_data[:, 1:]):
-                if label not in ignore_classes:
-                    label = label_map[label]  # remap after ignore classes
-                    class_labels.append(label)
-                    bounding_boxes.append(bounding_box)
-
-            if bounding_boxes:
-                bounding_boxes = np.array(bounding_boxes, dtype=np.float32)
-                assert image_size[0] == image_size[1]
-                bounding_boxes /= float(image_size[0])  # scale to relative coordinates
-                class_labels = np.array(class_labels)
-                snapshots.append(Snapshot(sample_name, image_dir, position.copy(), bounding_boxes, class_labels))
+            if image_label_data.shape[0] > 0:
+                snapshots.append(Snapshot(sample_name, image_dir, position.copy(), image_label_data))
 
             # move subimage to the right
             position[1] += image_stride[1]
@@ -314,10 +322,20 @@ class LizardDetectionDataset(Dataset):
             assert instance_class >= 1
             all_label_data.append((instance_class - 1, *bounding_box))  # label -1 to have labels 0 - 5
         all_label_data = np.array(all_label_data)
-        all_label_data = all_label_data[:, (0, 1, 3, 2, 4)]  # resort to (y, x, y, x)
+        # reorder from (y_min, y_max, x_min, x_max) to (min_x, min_y, max_x, max_y)
+        all_label_data = all_label_data[:, (0, 3, 1, 4, 2)]
 
         assert np.all(all_label_data[:, 1] < all_label_data[:, 3])
         assert np.all(all_label_data[:, 2] < all_label_data[:, 4])
+
+        # sort out invalid boxes
+        special_cases = ('glas_60', 'consep_3')
+        areas = _boxes_area(all_label_data[:, 1:])
+        area_threshold = (300 * 300 * 0.043)  # threshold found by testing, that excludes most invalid boxes
+        if sample_name in special_cases:
+            area_threshold = (300 * 300 * 0.03)
+        valid = areas < area_threshold
+        all_label_data = all_label_data[valid]
 
         return all_label_data
 
@@ -344,47 +362,13 @@ class LizardDetectionDataset(Dataset):
         return sio.loadmat(str(label_path))
 
     @staticmethod
-    def _transform_bounding_box(bounding_box, position) -> np.ndarray or None:
-        """
-        Args:
-            bounding_box: The bounding box to transform as (y1, y2, x1, x2)
-            position: The position of a snapshot
-        Returns:
-            The bounding box in form (y1, x1, y2, x2) where x and y coordinates are subtracted with the snapshot
-            position. The resulting bounding box is in tlbr-format.
-        """
-        return np.array([
-            bounding_box[0] - position[0],  # y1
-            bounding_box[2] - position[1],  # x1
-            bounding_box[1] - position[0],  # y2
-            bounding_box[3] - position[1],  # x2
-        ])
-
-    @staticmethod
-    def _bounding_box_in_snapshot(position: np.ndarray, image_size: np.ndarray, bounding_box: np.ndarray) -> bool:
-        # check y lower bound
-        if bounding_box[0] < position[0] or bounding_box[1] < position[0]:
-            return False
-        # check x lower bound
-        if bounding_box[2] < position[1] or bounding_box[3] < position[1]:
-            return False
-        upper_corner = position + image_size
-        # check y upper bound
-        if bounding_box[0] >= upper_corner[0] or bounding_box[1] >= upper_corner[0]:
-            return False
-        # check x upper bound
-        if bounding_box[2] >= upper_corner[1] or bounding_box[3] >= upper_corner[1]:
-            return False
-        return True
-
-    @staticmethod
     def normalization_values():
         # Calculated on the 'train' set
         mean = [0.64788544, 0.4870253,  0.68022424]
         std = [0.2539682,  0.22869842, 0.24064516]
         return mean, std
 
-    def pad_join_boxes_and_labels(self, bounding_boxes: np.ndarray, class_labels: np.ndarray) -> np.ndarray:
+    def pad_join_boxes_and_labels(self, label_data: np.ndarray) -> np.ndarray:
         """
         Converts given bounding_boxes from tlbr to ltrb format.
         Then joins the given bounding_boxes with shape [N, 4] and class_labels with shape [N,] to a new tensor with
@@ -395,26 +379,18 @@ class LizardDetectionDataset(Dataset):
         :param class_labels: Class labels of shape [N,]
         :return: Padded and joint bounding boxes and labels with shape [max_boxes_per_snapshot, 5]
         """
-        assert class_labels.shape[0] > 0
-        assert class_labels.shape[0] == bounding_boxes.shape[0]
-        assert (class_labels >= 0).all()
-        assert (class_labels < len(LABELS)).all()
+        assert label_data[:, 0].shape[0] > 0
+        assert (label_data[:, 0] >= 0).all()
+        assert (label_data[:, 0] < len(LABELS)).all()
 
         if self.force_one_class:
-            class_labels.fill(0)  # always state class 0
-
-        # convert from tlbr to ltrb
-        indices = torch.LongTensor([1, 0, 3, 2])
-        bounding_boxes = bounding_boxes[:, indices]
-
-        # join labels and boxes
-        joint = np.concatenate((class_labels.reshape(-1, 1), bounding_boxes), axis=1)
+            label_data[:, 0].fill(0)  # always state class 0
 
         # pad
-        add = self.max_boxes_per_snapshot - joint.shape[0]
+        add = self.max_boxes_per_snapshot - label_data.shape[0]
         pad = np.zeros((add, 5), dtype=np.float32)
         pad[:, 0] = -1
-        return np.concatenate((joint, pad), axis=0, dtype=np.float32)
+        return np.concatenate((label_data, pad), axis=0, dtype=np.float32)
 
     def __getitem__(self, index) -> Dict[str, Any]:
         """
@@ -426,10 +402,11 @@ class LizardDetectionDataset(Dataset):
         """
         snapshot = self.snapshots[index]
         subimage = self.get_subimage(snapshot)
-        labeled_boxes = self.pad_join_boxes_and_labels(snapshot.bounding_boxes, snapshot.class_labels)
+        labeled_boxes = self.pad_join_boxes_and_labels(snapshot.label_data)
         return {
             'image': self.to_tensor(subimage),
             'boxes': labeled_boxes,
+            'sample': snapshot.sample_name,
         }
 
     def __len__(self):
