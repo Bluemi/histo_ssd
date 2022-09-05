@@ -20,7 +20,9 @@ from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
 WRITE_PREDICTIONS_BATCH = 2900
-MAX_MAP_UPDATES = 400  # only use some samples for mean average precision update
+NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are samples with 666 ground truth boxes)
+# only use some samples for mean average precision update. Only allow predictions for 600 images
+MAX_MAP_UPDATES = NUM_PRED_LIMIT * 600
 
 
 class DefaultTrial(PyTorchTrial):
@@ -274,13 +276,14 @@ class DefaultTrial(PyTorchTrial):
             if self.enable_full_evaluation:
                 pos_threshold = 0.2
             batch_output = predict(
-                anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=pos_threshold
+                anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=pos_threshold,
+                num_pred_limit=NUM_PRED_LIMIT,
             )
 
             # check num outputs
             for out in batch_output:
-                if len(out) > 700:
-                    print('WARN: got output with {} predictions'.format(len(out)))
+                if len(out) == NUM_PRED_LIMIT:
+                    print('WARN: limited output to {} predictions'.format(len(out)))
 
             last_predict_duration = predict_clock.get_duration()
             if self.use_clock:
@@ -288,7 +291,8 @@ class DefaultTrial(PyTorchTrial):
 
             if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
-                mean_average_precision_counter += len(batch['boxes'])
+                for out in batch_output:
+                    mean_average_precision_counter += len(out)
 
             # write prediction images
             if self.enable_full_evaluation and image_counter < image_prediction_max_images:
