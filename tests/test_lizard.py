@@ -18,8 +18,8 @@ SHOW_IMAGE = False
 
 
 def main():
-    ignore_classes = [0, 4]
-    # ignore_classes = None
+    # ignore_classes = [0, 4]
+    ignore_classes = None
     whole_dataset = LizardDetectionDataset.from_datadir(
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
         image_size=np.array([300, 300]),
@@ -35,10 +35,10 @@ def main():
     debug(len(train))
     debug(len(validation))
 
-    show_max_boxes(whole_dataset)
+    # show_max_boxes(whole_dataset)
     # show_area_stats(whole_dataset)
     # show_images(whole_dataset)
-    # show_distributions(whole_dataset, train, validation)
+    show_distributions(whole_dataset, train, validation)
 
 
 def wrap_dataset(dataset):
@@ -125,7 +125,8 @@ def get_distribution(dataset):
         for box in boxes:
             label = box[0].item()
             label_distribution[label] += 1
-    del label_distribution[-1]
+    if -1 in label_distribution:
+        del label_distribution[-1]
     return label_distribution
 
 

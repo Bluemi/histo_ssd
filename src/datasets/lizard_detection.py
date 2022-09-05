@@ -219,6 +219,8 @@ class LizardDetectionDataset(Dataset):
                 old_label_indices = all_label_data[:, 0] == old_label
                 all_label_data[old_label_indices, 0] = new_label  # map to new label
 
+        return all_label_data
+
     @staticmethod
     def _snapshots_from_image_file(
             data_dir: Path, filename: Path, image_size: np.ndarray, image_stride: np.ndarray, ignore_classes
@@ -234,7 +236,8 @@ class LizardDetectionDataset(Dataset):
         all_label_data = LizardDetectionDataset._load_all_label_data(data_dir, sample_name)
 
         # maps class labels to new class labels
-        LizardDetectionDataset._remap_ignored_classes(all_label_data, ignore_classes)
+        if ignore_classes:
+            all_label_data = LizardDetectionDataset._remap_ignored_classes(all_label_data, ignore_classes)
 
         # iterate as long as right-bottom corner of subimage is in bounds of full_image_size
         while (position + image_size <= full_image_size).all():
