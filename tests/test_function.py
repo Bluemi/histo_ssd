@@ -59,6 +59,20 @@ def test_nms():
         print('iou_t = {}: {} boxes'.format(iou_threshold, keep_indices.shape[0]))
 
 
+def test_tmp():
+    outer_box = torch.tensor([0.0, 0.0, 1.0, 1.0])
+    outer_box_center = torch.tensor([
+        (outer_box[0] + outer_box[2]) * 0.5,
+        (outer_box[1] + outer_box[3]) * 0.5
+    ])
+    for x in range(2):
+        for y in range(2):
+            new_outer_box = torch.clone(outer_box)
+            new_outer_box[[x*2, y*2+1]] = outer_box_center
+            print(new_outer_box)
+
+
 if __name__ == '__main__':
     # main()
-    test_nms()
+    # test_nms()
+    test_tmp()

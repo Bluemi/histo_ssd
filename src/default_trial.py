@@ -290,7 +290,7 @@ class DefaultTrial(PyTorchTrial):
             last_predict_duration = predict_clock.stop()
 
             if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
-                update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
+                update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output, divide_limit=100)
                 for out in batch_output:
                     mean_average_precision_counter += len(out)
                 if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):

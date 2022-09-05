@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import torch
 from torch import nn
@@ -9,7 +9,8 @@ EPSILON = 1e-7
 
 
 def update_mean_average_precision(
-        mean_average_precision: MeanAveragePrecision, ground_truth_boxes: torch.Tensor, predictions: List[torch.Tensor]
+        mean_average_precision: MeanAveragePrecision, ground_truth_boxes: torch.Tensor, predictions: List[torch.Tensor],
+        divide_limit: int = 0
 ):
     """
     Updates the mean average precision metric.
@@ -20,6 +21,7 @@ def update_mean_average_precision(
                                out.
     :param predictions: Batch of predictions with shape [BATCH_SIZE, NUM_PREDICTIONS, 6] each entry with data
                        (class_label, confidence, left, top, right, bottom).
+    :param divide_limit: If set, divide predictions into smaller squares to fix det threshold
     """
     assert ground_truth_boxes.shape[0] == len(predictions)  # batch size should be equal
 
@@ -44,7 +46,101 @@ def update_mean_average_precision(
         }
         preds.append(prediction_example)
 
-    mean_average_precision.update(preds, target)
+    # divide preds
+    if divide_limit:
+        divided_target = []
+        divided_pred = []
+        for t, p in zip(target, preds):
+            ts, ps = divide_to_limit(t, p, limit=divide_limit)
+            divided_target.extend(ts)
+            divided_pred.extend(ps)
+    else:
+        divided_target = target
+        divided_pred = preds
+
+    mean_average_precision.update(divided_pred, divided_target)
+
+
+def divide_to_limit(
+        target: Dict[str, torch.Tensor], pred: Dict[str, torch.Tensor], limit=100, outer_box=None
+) -> Tuple[List, List]:
+    """
+    Divides the given targets and preds into smaller squares to limit the number of predictions per image to the given
+    limit.
+
+    :param target: The target dict with keys 'boxes' and 'labels'
+    :param pred: The prediction dict with keys 'boxes', 'scores' and 'labels'
+    :param limit: The limit to reduce to
+    :param outer_box: The outer box for this division. If None the whole image is used.
+    :return: Two lists (targets, preds) containing the same targets and preds but divided by position.
+    """
+    if pred['boxes'].shape[0] < limit:
+        return [target], [pred]
+
+    if outer_box is None:
+        outer_box = torch.tensor([0.0, 0.0, 1.0, 1.0])
+
+    # define outer boxes
+    outer_box_center = torch.tensor([
+        (outer_box[0] + outer_box[2]) * 0.5,
+        (outer_box[1] + outer_box[3]) * 0.5
+    ])
+    new_preds = []
+    new_targets = []
+
+    for x in range(2):
+        for y in range(2):
+            new_outer_box = torch.clone(outer_box)
+            new_outer_box[[x*2, y*2+1]] = outer_box_center
+
+            # divide targets
+            target_box_indices = box_indices_inside(target['boxes'], new_outer_box)
+            new_target = {
+                'boxes': target['boxes'][target_box_indices],
+                'labels': target['labels'][target_box_indices],
+            }
+
+            # divide preds
+            pred_box_indices = box_indices_inside(pred['boxes'], new_outer_box)
+            new_pred = {
+                'boxes': pred['boxes'][pred_box_indices],
+                'scores': pred['scores'][pred_box_indices],
+                'labels': pred['labels'][pred_box_indices],
+            }
+
+            ts, ps = divide_to_limit(new_target, new_pred, limit=limit, outer_box=new_outer_box)
+            new_preds.extend(ps)
+            new_targets.extend(ts)
+
+    return new_targets, new_preds
+
+
+def box_indices_inside(inner_boxes: torch.Tensor, outer_box: torch.Tensor) -> torch.Tensor:
+    """
+    Returns a tensor with shape [N,]. The i-th bool in the result is True, if the center of the i-th box in boxes is
+    inside outer_box.
+
+    :param inner_boxes: A tensor with shape [N, 4], each element is (l, t, r, b)
+    :param outer_box: A tensor with shape [4,] with (l, t, r, b)
+    """
+    centers = torch.stack(
+        (
+            (inner_boxes[:, 0] + inner_boxes[:, 2]) * 0.5,
+            (inner_boxes[:, 1] + inner_boxes[:, 3]) * 0.5,
+        ),
+        dim=1
+    )
+    assert outer_box[0] < outer_box[2]
+    assert outer_box[1] < outer_box[3]
+    assert inner_boxes.shape[1] == 4
+
+    # check center - outer left
+    # noinspection PyTypeChecker
+    x_indices = torch.logical_and(centers[:, 0] >= outer_box[0], centers[:, 0] < outer_box[2])
+    # noinspection PyTypeChecker
+    y_indices = torch.logical_and(centers[:, 1] >= outer_box[1], centers[:, 1] < outer_box[3])
+
+    return torch.logical_and(x_indices, y_indices)
 
 
 def calc_loss(

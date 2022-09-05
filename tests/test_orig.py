@@ -40,7 +40,7 @@ elif DATASET == 'lizard':
         data_dir=Path('/home/alok/cbmi/data/LizardDataset'),
         image_size=np.array([256, 256]),
         image_stride=np.array([256, 256]),
-        use_cache=True,
+        use_cache=False,
         show_progress=True,
         force_one_class=True,
     )
@@ -50,14 +50,14 @@ elif DATASET == 'lizard':
         batch_size=batch_size,
         shuffle=True,
         num_workers=8,
-        pin_memory=True
+        pin_memory=False
     )
     val_iter = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=8,
-        pin_memory=True
+        pin_memory=False
     )
 else:
     raise ValueError('Unknown dataset: {}'.format(DATASET))
@@ -109,7 +109,10 @@ else:
 # Prediction
 
 mean_average_precision = MeanAveragePrecision(
-    box_format='xyxy', class_metrics=False, max_detection_thresholds=[6, 60, 600],
+    box_format='xyxy', class_metrics=False, max_detection_thresholds=[1, 10, 100],
+)
+mean_average_precision2 = MeanAveragePrecision(
+    box_format='xyxy', class_metrics=False, max_detection_thresholds=[1, 10, 100],
 )
 
 do_display = False
@@ -123,10 +126,15 @@ for batch in val_iter:
     anchors, cls_preds, bbox_preds = net(images)
     debug(anchors.shape)
     predict_clock = Clock()
-    batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.7, num_pred_limit=300)
+    batch_output = predict(
+        anchors, cls_preds, bbox_preds, confidence_threshold=0.2, pos_threshold=0.2, num_pred_limit=700,
+    )
     predict_clock.sap('predict')
 
+    num_batch_predictions = sum(map(len, batch_output))
+    debug(num_batch_predictions)
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
+    update_mean_average_precision(mean_average_precision2, ground_truth_boxes, batch_output, divide_limit=100)
 
     if do_display:
         for image, ground_truth_box, output in zip(images, ground_truth_boxes, batch_output):
@@ -152,9 +160,13 @@ for batch in val_iter:
             if not key:
                 do_display = False
                 break
-    break
 
 mean_average_precision_clock = Clock()
 mean_ap = mean_average_precision.compute()
 mean_average_precision_clock.sap('map.compute()')
+
+mean_ap2 = mean_average_precision2.compute()
+mean_average_precision_clock.sap('maplimit.compute()')
+
 pprint(mean_ap)
+pprint(mean_ap2)

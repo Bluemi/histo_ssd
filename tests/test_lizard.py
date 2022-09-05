@@ -12,7 +12,7 @@ from datasets.lizard_detection import LizardDetectionDataset
 from utils.augmentations import RandomRotate, RandomFlip
 from utils.bounding_boxes import box_area
 from utils.funcs import debug, draw_boxes
-
+from utils.metrics import box_indices_inside
 
 SHOW_IMAGE = False
 
@@ -38,7 +38,8 @@ def main():
     # show_max_boxes(whole_dataset)
     # show_area_stats(whole_dataset)
     # show_images(whole_dataset)
-    show_distributions(whole_dataset, train, validation)
+    # show_distributions(whole_dataset, train, validation)
+    test_cut(whole_dataset)
 
 
 def wrap_dataset(dataset):
@@ -49,6 +50,17 @@ def wrap_dataset(dataset):
             (None, RandomFlip())
         ]
     )
+
+
+def test_cut(dataset):
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        image = sample['image']
+        boxes = filter_boxes(sample['boxes'])
+        boxes = torch.tensor(boxes)
+        box_indices = box_indices_inside(boxes[:, 1:], torch.tensor([0.0, 0.0, 0.5, 0.5]))
+        boxes = boxes[box_indices]
+        show_sample(image, boxes)
 
 
 def show_sample(image, boxes):
