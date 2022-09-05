@@ -294,7 +294,7 @@ class DefaultTrial(PyTorchTrial):
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
                 for out in batch_output:
                     mean_average_precision_counter += len(out)
-                if (not mean_average_precision_counter < MAX_MAP_UPDATES) and not self.enable_full_evaluation:
+                if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
                     print('WARN: stopping map updates')
 
             # write prediction images
