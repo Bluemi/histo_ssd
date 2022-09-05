@@ -311,7 +311,7 @@ class DefaultTrial(PyTorchTrial):
         mean_average_precision_clock = Clock()
         result = mean_average_precision.compute()
         if self.use_clock:
-            mean_average_precision_clock.sap('map.compute()')
+            mean_average_precision_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
