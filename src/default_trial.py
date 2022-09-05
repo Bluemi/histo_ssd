@@ -24,6 +24,7 @@ NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are sample
 # only use some samples for mean average precision update. Only allow predictions for 600 images
 MAX_MAP_UPDATES = NUM_PRED_LIMIT * 100
 DEFAULT_BBOX_LOSS_SCALE = 48.0
+USE_MAP_UNDIV = False
 
 
 class DefaultTrial(PyTorchTrial):
@@ -249,7 +250,12 @@ class DefaultTrial(PyTorchTrial):
         batch_idx = self.context._current_batch_idx + 1
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
 
-        mean_average_precision = MeanAveragePrecision(
+        mean_ap = MeanAveragePrecision(
+            box_format='xyxy', class_metrics=self.enable_class_metrics,
+            # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
+        )
+
+        mean_ap_undiv = MeanAveragePrecision(
             box_format='xyxy', class_metrics=self.enable_class_metrics,
             # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
@@ -290,7 +296,9 @@ class DefaultTrial(PyTorchTrial):
             last_predict_duration = predict_clock.stop()
 
             if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
-                update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output, divide_limit=100)
+                update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
+                if USE_MAP_UNDIV:
+                    update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
                 for out in batch_output:
                     mean_average_precision_counter += len(out)
                 if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
@@ -308,10 +316,18 @@ class DefaultTrial(PyTorchTrial):
             go_through_dataset_clock.sap('predict dataset')
 
         # TODO: result['map_per_class'] should be returned separate for each class
-        mean_average_precision_clock = Clock()
-        result = mean_average_precision.compute()
+        map_clock = Clock()
+        result = mean_ap.compute()
         if self.use_clock:
-            mean_average_precision_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
+            map_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
+        if USE_MAP_UNDIV:
+            map_clock.start()
+            result_undiv = mean_ap_undiv.compute()
+            if self.use_clock:
+                map_clock.sap('map_undiv.compute() for {} samples'.format(mean_average_precision_counter))
+
+            for key, value in result_undiv.items():
+                result['{}_undiv'.format(key)] = value
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
