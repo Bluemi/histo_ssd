@@ -1,3 +1,4 @@
 searcher:
   metric: map
   smaller_is_better: false
+  always_compute_map: true

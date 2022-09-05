@@ -25,7 +25,6 @@ NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are sample
 MAX_MAP_UPDATES = NUM_PRED_LIMIT * 100
 DEFAULT_BBOX_LOSS_SCALE = 48.0
 USE_MAP_UNDIV = False
-ALWAYS_PRODUCE_MAP = False
 
 
 class DefaultTrial(PyTorchTrial):
@@ -57,6 +56,7 @@ class DefaultTrial(PyTorchTrial):
         self.max_eval_time = self.context.get_hparams().get('max_eval_time')
         self.bbox_loss_scale = self.context.get_hparams().get('bbox_loss_scale', 1.0)
         self.dataset_image_size = self.context.get_hparam('dataset_image_size')
+        self.always_compute_map = self.context.get_hparams().get('always_compute_map', False)
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -261,7 +261,7 @@ class DefaultTrial(PyTorchTrial):
             # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
 
-        calculate_map = self.enable_full_evaluation or ALWAYS_PRODUCE_MAP
+        calculate_map = self.enable_full_evaluation or self.always_compute_map
 
         image_counter = 0
         mean_average_precision_counter = 0
