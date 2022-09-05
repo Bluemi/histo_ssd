@@ -250,7 +250,7 @@ class DefaultTrial(PyTorchTrial):
 
         mean_average_precision = MeanAveragePrecision(
             box_format='xyxy', class_metrics=self.enable_class_metrics,
-            max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
+            # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
 
         image_counter = 0
@@ -286,9 +286,7 @@ class DefaultTrial(PyTorchTrial):
                     print('WARN: limited output to {} predictions'.format(len(out)))
                     break
 
-            last_predict_duration = predict_clock.get_duration()
-            if self.use_clock:
-                predict_clock.sap('predict')
+            last_predict_duration = predict_clock.stop()
 
             if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
