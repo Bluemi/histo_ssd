@@ -25,6 +25,7 @@ NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are sample
 MAX_MAP_UPDATES = NUM_PRED_LIMIT * 100
 DEFAULT_BBOX_LOSS_SCALE = 48.0
 USE_MAP_UNDIV = False
+ALWAYS_PRODUCE_MAP = False
 
 
 class DefaultTrial(PyTorchTrial):
@@ -260,6 +261,8 @@ class DefaultTrial(PyTorchTrial):
             # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
 
+        calculate_map = self.enable_full_evaluation or ALWAYS_PRODUCE_MAP
+
         image_counter = 0
         mean_average_precision_counter = 0
         losses = []
@@ -295,14 +298,15 @@ class DefaultTrial(PyTorchTrial):
 
             last_predict_duration = predict_clock.stop()
 
-            if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
-                update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
-                if USE_MAP_UNDIV:
-                    update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
-                for out in batch_output:
-                    mean_average_precision_counter += len(out)
-                if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
-                    print('WARN: stopping map updates')
+            if calculate_map:
+                if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
+                    update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
+                    if USE_MAP_UNDIV:
+                        update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
+                    for out in batch_output:
+                        mean_average_precision_counter += len(out)
+                    if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
+                        print('WARN: stopping map updates')
 
             # write prediction images
             if self.enable_full_evaluation and image_counter < image_prediction_max_images:
@@ -317,10 +321,13 @@ class DefaultTrial(PyTorchTrial):
 
         # TODO: result['map_per_class'] should be returned separate for each class
         map_clock = Clock()
-        result = mean_ap.compute()
+        result = {}
+        if calculate_map:
+            result = mean_ap.compute()
+
         if self.use_clock:
             map_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
-        if USE_MAP_UNDIV:
+        if calculate_map and USE_MAP_UNDIV:
             map_clock.start()
             result_undiv = mean_ap_undiv.compute()
             if self.use_clock:

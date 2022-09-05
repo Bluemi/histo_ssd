@@ -50,8 +50,8 @@ case "$1" in
 			# p/hparams/nms_threshold.yaml
 			# p/hparams/bbox_loss_scale.yaml
 
-			# p/metrics/loss.yaml
-			p/metrics/map.yaml
+			p/metrics/loss.yaml
+			# p/metrics/map.yaml
 			# p/metrics/write_predictions.yaml
 			p/metrics/write_few_predictions.yaml
 
