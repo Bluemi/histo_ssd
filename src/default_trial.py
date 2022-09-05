@@ -23,6 +23,7 @@ WRITE_PREDICTIONS_BATCH = 2900
 NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are samples with 666 ground truth boxes)
 # only use some samples for mean average precision update. Only allow predictions for 600 images
 MAX_MAP_UPDATES = NUM_PRED_LIMIT * 600
+DEFAULT_BBOX_LOSS_SCALE = 48.0
 
 
 class DefaultTrial(PyTorchTrial):
@@ -268,7 +269,7 @@ class DefaultTrial(PyTorchTrial):
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
                 use_smooth_l1=self.use_smooth_l1,
             )
-            loss = (cls_loss + bbox_loss * 30.0).mean()  # we do not scale loss here for evaluation
+            loss = (cls_loss + bbox_loss * DEFAULT_BBOX_LOSS_SCALE).mean()  # we do not scale loss here for evaluation
             losses.append(loss)
 
             predict_clock = Clock()
@@ -314,7 +315,7 @@ class DefaultTrial(PyTorchTrial):
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
-        result['bbox_loss'] = torch.mean(bbox_loss)
+        result['bbox_loss'] = torch.mean(bbox_loss * DEFAULT_BBOX_LOSS_SCALE)
 
         if self.use_clock:
             eval_clock.sap('eval dataset')
