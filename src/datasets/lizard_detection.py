@@ -72,7 +72,7 @@ class Snapshot:
 class LizardDetectionDataset(Dataset):
     def __init__(
             self, snapshots: List[Snapshot], data_dir: Path, image_size: np.ndarray, max_boxes_per_snapshot: int,
-            image_cache=None, force_one_class: bool = False,
+            image_cache=None, force_one_class: bool = False, ignore_image: bool = False
     ):
         """
         Args:
@@ -83,6 +83,7 @@ class LizardDetectionDataset(Dataset):
             max_boxes_per_snapshot: The maximum number of bounding boxes per snapshot
             image_cache: The image cache to use. If None no image caching will be used.
             force_one_class: Always return class 0 as label
+            ignore_image: Don't load images for testing
         """
         self.snapshots = snapshots
         self.data_dir = data_dir
@@ -91,11 +92,13 @@ class LizardDetectionDataset(Dataset):
         self.max_boxes_per_snapshot = max_boxes_per_snapshot
         self.to_tensor = transforms.ToTensor()
         self.force_one_class = force_one_class
+        self.ignore_image = ignore_image
 
     @staticmethod
     def from_datadir(
         data_dir: Path, image_size: np.ndarray, image_stride: np.ndarray or None = None, use_cache: bool = False,
-        show_progress: bool = False, force_one_class: bool = False, ignore_classes: Optional[List[int]] = None
+        show_progress: bool = False, force_one_class: bool = False, ignore_classes: Optional[List[int]] = None,
+        ignore_image: bool = False,
     ):
         """
         Args:
@@ -107,6 +110,7 @@ class LizardDetectionDataset(Dataset):
             show_progress: Whether to show loading progress with tqdm
             force_one_class: Always return class 0 as label
             ignore_classes: A list of class indices that should not be suppressed in the output of the dataset.
+            ignore_image: Don't load images for testing
         """
         assert not (force_one_class and ignore_classes), 'Options force_one_class and ignore_classes are incompatible'
         if ignore_classes is None:
@@ -127,6 +131,7 @@ class LizardDetectionDataset(Dataset):
             max_boxes_per_snapshot=max_boxes_per_snapshot,
             image_cache={} if use_cache else None,
             force_one_class=force_one_class,
+            ignore_image=ignore_image
         )
 
     @staticmethod
@@ -404,10 +409,12 @@ class LizardDetectionDataset(Dataset):
                    Each sample as the form [class_label, top, left, bottom, right] with 0 <= class_label <= 5.
         """
         snapshot = self.snapshots[index]
-        subimage = self.get_subimage(snapshot)
+        subimage = None
+        if not self.ignore_image:
+            subimage = self.to_tensor(self.get_subimage(snapshot))
         labeled_boxes = self.pad_join_boxes_and_labels(snapshot.label_data)
         return {
-            'image': self.to_tensor(subimage),
+            'image': subimage,
             'boxes': labeled_boxes,
             'sample': snapshot.sample_name,
         }
