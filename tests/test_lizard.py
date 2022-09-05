@@ -29,17 +29,17 @@ def main():
         ignore_classes=ignore_classes,
     )
 
-    train, validation = whole_dataset.split(0.8)
+    # train, validation = whole_dataset.split(0.8)
 
-    debug(len(whole_dataset))
-    debug(len(train))
-    debug(len(validation))
+    # debug(len(whole_dataset))
+    # debug(len(train))
+    # debug(len(validation))
 
     # show_max_boxes(whole_dataset)
-    # show_area_stats(whole_dataset)
+    show_area_stats(whole_dataset)
     # show_images(whole_dataset)
     # show_distributions(whole_dataset, train, validation)
-    test_cut(whole_dataset)
+    # test_cut(whole_dataset)
 
 
 def wrap_dataset(dataset):
@@ -85,23 +85,18 @@ def show_images(dataset):
 
 
 def show_area_stats(dataset):
-    area_threshold = 0.028
     max_area = 0
     min_area = 1
+    bins = np.array([0.0, 0.01, 0.])
     for i in range(len(dataset)):
         sample = dataset[i]
-        image = sample['image']
         boxes = filter_boxes(sample['boxes'])
 
         box_areas = box_area(boxes[:, 1:])
+
+
         max_area = max(max_area, np.max(box_areas))
         min_area = min(min_area, np.min(box_areas))
-        if np.max(box_areas) > area_threshold:
-            for box in boxes:
-                this_box_area = box_area(box[None, 1:])
-                if this_box_area > area_threshold:
-                    print(this_box_area, sample['sample'])
-            show_sample(image, boxes)
 
     print('min area:', min_area)
     print('max area:', max_area)
