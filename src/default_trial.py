@@ -284,15 +284,18 @@ class DefaultTrial(PyTorchTrial):
             for out in batch_output:
                 if len(out) == NUM_PRED_LIMIT:
                     print('WARN: limited output to {} predictions'.format(len(out)))
+                    break
 
             last_predict_duration = predict_clock.get_duration()
             if self.use_clock:
-                predict_clock.stop_and_print('predict took {} seconds')
+                predict_clock.sap('predict')
 
             if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
                 update_mean_average_precision(mean_average_precision, batch['boxes'], batch_output)
                 for out in batch_output:
                     mean_average_precision_counter += len(out)
+                if (not mean_average_precision_counter < MAX_MAP_UPDATES) and not self.enable_full_evaluation:
+                    print('WARN: stopping map updates')
 
             # write prediction images
             if self.enable_full_evaluation and image_counter < image_prediction_max_images:
@@ -303,20 +306,20 @@ class DefaultTrial(PyTorchTrial):
                 ))
                 break  # stop early, if it takes too long
         if self.use_clock:
-            go_through_dataset_clock.stop_and_print('predict dataset took {} seconds')
+            go_through_dataset_clock.sap('predict dataset')
 
         # TODO: result['map_per_class'] should be returned separate for each class
         mean_average_precision_clock = Clock()
         result = mean_average_precision.compute()
         if self.use_clock:
-            mean_average_precision_clock.stop_and_print('mean_average_precision.compute() took {} seconds')
+            mean_average_precision_clock.sap('map.compute()')
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
         result['bbox_loss'] = torch.mean(bbox_loss)
 
         if self.use_clock:
-            eval_clock.stop_and_print('evaluate_full_dataset() took {} seconds')
+            eval_clock.sap('eval dataset')
 
         return result
 

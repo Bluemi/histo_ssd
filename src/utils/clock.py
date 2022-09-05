@@ -24,3 +24,7 @@ class Clock:
     def stop_and_print(self, format_str: str):
         duration = self.stop()
         print(format_str.format(duration))
+
+    def sap(self, name: str):
+        duration = self.stop()
+        print('{}: {:.2f} secs'.format(name, duration))

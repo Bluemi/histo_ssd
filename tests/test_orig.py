@@ -122,7 +122,7 @@ for batch in val_iter:
     debug(anchors.shape)
     predict_clock = Clock()
     batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.7, num_pred_limit=300)
-    predict_clock.stop_and_print('predict took {} seconds')
+    predict_clock.sap('predict')
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
 
@@ -154,5 +154,5 @@ for batch in val_iter:
 
 mean_average_precision_clock = Clock()
 mean_ap = mean_average_precision.compute()
-mean_average_precision_clock.stop_and_print('map.compute() took {} seconds')
+mean_average_precision_clock.sap('map.compute()')
 pprint(mean_ap)
