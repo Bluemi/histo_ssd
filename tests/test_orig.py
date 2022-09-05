@@ -121,7 +121,7 @@ for batch in val_iter:
     anchors, cls_preds, bbox_preds = net(images)
     debug(anchors.shape)
     predict_clock = Clock()
-    batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.7)
+    batch_output = predict(anchors, cls_preds, bbox_preds, confidence_threshold=0.7, num_pred_limit=300)
     predict_clock.stop_and_print('predict took {} seconds')
 
     update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)

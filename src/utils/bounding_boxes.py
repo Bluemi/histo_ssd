@@ -9,7 +9,7 @@ yxhw-Format:
     in respect to the image size.
 """
 import torch
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Optional
 
 
 def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
@@ -176,10 +176,10 @@ def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch
     # (no. of boxes2, 4), (no. of boxes1,), (no. of boxes2,)
     areas1 = box_area(boxes1)
     areas2 = box_area(boxes2)
-    # Shape of `inter_upperlefts`, `inter_lowerrights`, `inters`: (no. of boxes1, no. of boxes2, 2)
-    inter_upperlefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
-    inter_lowerrights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
-    inters = (inter_lowerrights - inter_upperlefts).clamp(min=0)
+    # Shape of `inter_upper_lefts`, `inter_lower_rights`, `inters`: (no. of boxes1, no. of boxes2, 2)
+    inter_upper_lefts = torch.max(boxes1[:, None, :2], boxes2[:, :2])
+    inter_lower_rights = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])
+    inters = (inter_lower_rights - inter_upper_lefts).clamp(min=0)
     # Shape of `inter_areas` and `union_areas`: (no. of boxes1, no. of boxes2)
     inter_areas = inters[:, :, 0] * inters[:, :, 1]
     union_areas = areas1[:, None] + areas2 - inter_areas
@@ -329,7 +329,7 @@ def non_maximum_suppression(boxes: torch.Tensor, scores: torch.Tensor, iou_thres
 
 def multibox_detection(
         cls_probs: torch.Tensor, offset_preds: torch.Tensor, anchors: torch.Tensor, nms_iou_threshold: float = 0.5,
-        pos_threshold: float = 0.009999999
+        pos_threshold: float = 0.009999999, num_pred_limit: Optional[int] = None,
 ) -> List[torch.Tensor]:
     """
     Predict bounding boxes using non-maximum suppression.
@@ -345,6 +345,7 @@ def multibox_detection(
     :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
                               The smaller the threshold, the fewer boxes are kept.
     :param pos_threshold: A threshold uses for to low confidences.
+    :param num_pred_limit: If given limits the number of predictions per sample.
     """
     device, batch_size = cls_probs.device, cls_probs.shape[0]
     anchors = anchors.squeeze(0)
@@ -355,6 +356,9 @@ def multibox_detection(
 
         # sort out all anchor box samples with conf <= pos_threshold
         pos_conf_indices = conf > pos_threshold
+        if num_pred_limit is not None and torch.sum(pos_conf_indices) > num_pred_limit:
+            sorted_confidence_indices = torch.argsort(conf, descending=True)
+            pos_conf_indices = sorted_confidence_indices[:num_pred_limit]
         conf = conf[pos_conf_indices]
         class_id = class_id[pos_conf_indices]
         filtered_anchors = anchors[pos_conf_indices]
