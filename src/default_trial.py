@@ -22,7 +22,7 @@ from utils.augmentations import RandomRotate, RandomFlip
 WRITE_PREDICTIONS_BATCH = 2900
 NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are samples with 666 ground truth boxes)
 # only use some samples for mean average precision update. Only allow predictions for 600 images
-MAX_MAP_UPDATES = NUM_PRED_LIMIT * 600
+MAX_MAP_UPDATES = NUM_PRED_LIMIT * 100
 DEFAULT_BBOX_LOSS_SCALE = 48.0
 
 

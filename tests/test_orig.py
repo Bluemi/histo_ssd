@@ -108,7 +108,9 @@ else:
 
 # Prediction
 
-mean_average_precision = MeanAveragePrecision(box_format='xyxy', class_metrics=True)
+mean_average_precision = MeanAveragePrecision(
+    box_format='xyxy', class_metrics=False, max_detection_thresholds=[6, 60, 600],
+)
 
 do_display = False
 
