@@ -9,8 +9,9 @@ from utils.bounding_boxes import multibox_target, generate_random_boxes, interse
     intersection_over_union, box_iou
 from utils.clock import Clock
 from utils.funcs import debug
-from torchvision import ops
+from torchvision.ops import box_iou as ops_iou
 from tqdm import tqdm
+from torchmetrics import JaccardIndex
 
 BATCH_SIZE = 3
 NUM_CLASSES = 6
@@ -168,15 +169,16 @@ def torch_part(boxes1, boxes2):
 
 
 def test_iou():
-    boxes1 = generate_random_boxes(5000, min_size=0.02, max_size=0.04)
-    boxes2 = generate_random_boxes(5000, min_size=0.02, max_size=0.04)
+    num_boxes = 2000
+    boxes1 = generate_random_boxes(num_boxes, min_size=0.02, max_size=0.04)
+    boxes2 = generate_random_boxes(num_boxes, min_size=0.02, max_size=0.04)
     # debug(torch.mean(boxes1-boxes2))
     clock = Clock()
     # iou_new = intersection_over_union2(boxes1, boxes2)
     # clock.stop_and_print('new: {} seconds')
-    fs = [intersection_over_union, box_iou, ops.box_iou, intersection_over_union_grid, torch_part]
+    fs = [intersection_over_union, box_iou, ops_iou, intersection_over_union_grid, torch_part]
     results = []
-    iou_compare = ops.box_iou(boxes1, boxes2)
+    iou_compare = ops_iou(boxes1, boxes2)
     for f in tqdm(fs):
         print('check', f.__name__)
         clock = Clock()
@@ -187,6 +189,7 @@ def test_iou():
         assert torch.allclose(iou, iou_compare)
         results.append((f.__name__, duration))
 
+    results = sorted(results, key=lambda x: x[1])
     for result in results:
         print('{}: {}'.format(*result))
 
