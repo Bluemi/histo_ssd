@@ -58,6 +58,7 @@ class DefaultTrial(PyTorchTrial):
         self.dataset_image_size = self.context.get_hparam('dataset_image_size')
         self.always_compute_map = self.context.get_hparams().get('always_compute_map', False)
         self.iou_match_threshold = self.context.get_hparams().get('iou_match_threshold', 0.5)
+        self.use_center_points = self.context.get_hparams().get('use_center_points', False)
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -67,11 +68,13 @@ class DefaultTrial(PyTorchTrial):
         if self.pretrained:
             model = SSDModel.from_state_dict(
                 state_dict_path='DOWNLOAD', num_classes=self.num_classes, backbone_arch=backbone_arch,
-                min_anchor_size=smin, max_anchor_size=smax, freeze_pretrained=False
+                min_anchor_size=smin, max_anchor_size=smax, freeze_pretrained=False,
+                center_points=self.use_center_points,
             )
         else:
             model = SSDModel(
-                num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax
+                num_classes=self.num_classes, backbone_arch=backbone_arch, min_anchor_size=smin, max_anchor_size=smax,
+                center_points=self.use_center_points,
             )
 
         # noinspection PyTypeChecker
@@ -178,7 +181,7 @@ class DefaultTrial(PyTorchTrial):
 
         anchors, cls_preds, bbox_preds = self.model(image)
         bbox_labels, bbox_masks, cls_labels = multibox_target(
-            anchors, boxes, iou_match_threshold=self.iou_match_threshold
+            anchors, boxes, self.use_center_points, iou_match_threshold=self.iou_match_threshold
         )
         cls_loss, bbox_loss = calc_cls_bbox_loss(
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
@@ -276,7 +279,8 @@ class DefaultTrial(PyTorchTrial):
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
 
             bbox_labels, bbox_masks, cls_labels = multibox_target(
-                anchors, batch['boxes'].to(self.context.device), iou_match_threshold=self.iou_match_threshold
+                anchors, batch['boxes'].to(self.context.device), self.use_center_points,
+                iou_match_threshold=self.iou_match_threshold
             )
             # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
