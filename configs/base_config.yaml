@@ -25,6 +25,8 @@ hyperparameters:
   bbox_loss_scale: 48.0
 min_validation_period:
   batches: 300
+workspace: MastersthesisBruno
+project: SSD-Standard
 searcher:
   name: single
   metric: map

@@ -40,10 +40,10 @@ case "$1" in
 
 			# p/augmentation/test_rotate_flip.yaml
 			# p/hparams/lr_narrow.yaml
-			p/hparams/lr.yaml
+			# p/hparams/lr.yaml
 			# p/hparams/sizes.yaml
 			# p/hparams/sizes_small.yaml
-			p/hparams/sizes_med.yaml
+			# p/hparams/sizes_med.yaml
 			# p/hparams/negative_ratio_narrow.yaml
 			# p/hparams/image_stride.yaml
 			# p/hparams/smoothl1.yaml
@@ -64,15 +64,16 @@ case "$1" in
 			# p/searcher/adaptive_asha_few.yaml
 			# p/searcher/random.yaml
 
-			p/workspaces/ssd_standard.yaml
+			# p/workspaces/ssd_standard.yaml
 			# p/workspaces/ssd_scaleup.yaml
-			# p/workspaces/ssd_vgg16e.yaml
+			p/workspaces/ssd_vgg16e.yaml
 			# p/workspaces/ssd_centerpoints.yaml
 
 			p/profiling/clock.yaml
 		)
 
 		base_config="./configs/base_config.yaml"
+		# base_config="./configs/vgg16_early_config.yaml"
 		# base_config="./configs/scale_up_config.yaml"
 
 		python3 ./utils/start_experiment.py -v $dry "$base_config" "${patches[@]}"

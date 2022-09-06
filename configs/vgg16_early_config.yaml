@@ -1,18 +1,18 @@
-name: SSD::Standard-Test::Scale-Up
+name: SSD::Standard-Test
 description: "{network_arch}-Model on {dataset}-Dataset{irc} - {action} - {augmentation}"
 hyperparameters:
   global_batch_size: 32
   num_workers: 8
   optimizer: "sgd"
-  learning_rate: 0.001
+  learning_rate: 0.023
   l2_regularization: 1e-5
   momentum: 0.9
   hnm_norm_per_batch: true
   image_prediction_score_threshold: 0.7
   image_prediction_max_images: 0
   negative_ratio: 4.0
-  min_anchor_size: 0.065
-  max_anchor_size: 0.54
+  min_anchor_size: 0.0555
+  max_anchor_size: 0.575
   nms_threshold: 0.5
   aug_norm: false
   aug_rotate: true
@@ -26,7 +26,7 @@ hyperparameters:
 min_validation_period:
   batches: 300
 workspace: MastersthesisBruno
-project: SSD-ScaleUp
+project: SSD-VGG16-e
 searcher:
   name: single
   metric: map
