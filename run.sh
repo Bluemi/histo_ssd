@@ -35,8 +35,8 @@ case "$1" in
 			p/dataset/ignore_rare_classes.yaml
 			# p/dataset/scale_up.yaml
 
-			# p/model/vgg16.yaml
-			p/model/vgg16early.yaml
+			p/model/vgg16.yaml
+			# p/model/vgg16early.yaml
 
 			# p/augmentation/test_rotate_flip.yaml
 			# p/hparams/lr_narrow.yaml
@@ -49,7 +49,7 @@ case "$1" in
 			# p/hparams/smoothl1.yaml
 			# p/hparams/nms_threshold.yaml
 			# p/hparams/bbox_loss_scale.yaml
-			p/hparams/iou_match_threshold.yaml
+			# p/hparams/iou_match_threshold.yaml
 
 			p/metrics/loss.yaml
 			# p/metrics/map.yaml
@@ -57,20 +57,21 @@ case "$1" in
 			p/metrics/write_few_predictions.yaml
 
 			# p/checkpointing/save_checkpoints.yaml
-			p/checkpointing/load_checkpoint.yaml
+			# p/checkpointing/load_checkpoint.yaml
 			# p/checkpointing/load_checkpoint_scaleup.yaml
 			# p/checkpointing/load_checkpoint_early.yaml
 
 			# p/searcher/adaptive_asha.yaml
 			# p/searcher/adaptive_asha_few.yaml
-			p/searcher/random.yaml
+			# p/searcher/random.yaml
 
 			# p/profiling/clock.yaml
 		)
 
 		# base_config="./configs/standard_config.yaml"
-		base_config="./configs/vgg16_early_config.yaml"
+		# base_config="./configs/vgg16_early_config.yaml"
 		# base_config="./configs/scale_up_config.yaml"
+		base_config="./configs/center_config.yaml"
 
 		python3 ./utils/start_experiment.py -v $dry "$base_config" "${patches[@]}"
 		;;

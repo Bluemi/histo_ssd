@@ -1,6 +1,7 @@
-name: SSD::Standard
+name: SSD::CenterPoints
 description: "{network_arch}-Model on {dataset}-Dataset{irc} - {action} - {augmentation}"
 hyperparameters:
+  use_center_points: true
   global_batch_size: 32
   num_workers: 8
   optimizer: "sgd"
@@ -26,7 +27,7 @@ hyperparameters:
 min_validation_period:
   batches: 300
 workspace: MastersthesisBruno
-project: SSD-Standard
+project: SSD-CenterPoints
 searcher:
   name: single
   metric: map
