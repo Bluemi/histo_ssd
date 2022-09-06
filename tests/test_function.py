@@ -4,8 +4,7 @@ from torch.utils.data import DataLoader
 
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
-from utils.bounding_boxes import multibox_target, generate_random_boxes, intersection_over_union, \
-    non_maximum_suppression
+from utils.bounding_boxes import multibox_target, generate_random_boxes, non_maximum_suppression
 from utils.funcs import debug
 
 BATCH_SIZE = 3
