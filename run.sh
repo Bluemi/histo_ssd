@@ -71,6 +71,9 @@ case "$1" in
 	pr)
 		PYTHONPATH=./src python3 ./tests/test_prcurve.py
 		;;
+	map)
+		PYTHONPATH=./src python3 ./tests/test_map.py
+		;;
 	*)
 		echo "invalid run option"
 		;;
