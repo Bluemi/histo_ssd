@@ -72,7 +72,7 @@ case "$1" in
 			p/profiling/clock.yaml
 		)
 
-		base_config="./configs/base_config.yaml"
+		base_config="./configs/standard_config.yaml"
 		# base_config="./configs/vgg16_early_config.yaml"
 		# base_config="./configs/scale_up_config.yaml"
 
