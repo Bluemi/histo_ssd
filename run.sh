@@ -27,9 +27,9 @@ case "$1" in
 			shift
 		fi
 		patches=(
-			# p/cluster/pepper.yaml
+			p/cluster/pepper.yaml
 			# p/cluster/pepper_few.yaml
-			p/cluster/dt.yaml
+			# p/cluster/dt.yaml
 
 			p/dataset/lizard.yaml
 			p/dataset/ignore_rare_classes.yaml
@@ -49,7 +49,7 @@ case "$1" in
 			# p/hparams/smoothl1.yaml
 			# p/hparams/nms_threshold.yaml
 			# p/hparams/bbox_loss_scale.yaml
-			# p/hparams/iou_match_threshold.yaml
+			p/hparams/iou_match_threshold.yaml
 
 			p/metrics/loss.yaml
 			# p/metrics/map.yaml
@@ -57,13 +57,13 @@ case "$1" in
 			p/metrics/write_few_predictions.yaml
 
 			# p/checkpointing/save_checkpoints.yaml
-			# p/checkpointing/load_checkpoint.yaml
+			p/checkpointing/load_checkpoint.yaml
 			# p/checkpointing/load_checkpoint_scaleup.yaml
 			# p/checkpointing/load_checkpoint_early.yaml
 
 			# p/searcher/adaptive_asha.yaml
 			# p/searcher/adaptive_asha_few.yaml
-			# p/searcher/random.yaml
+			p/searcher/random.yaml
 
 			# p/profiling/clock.yaml
 		)

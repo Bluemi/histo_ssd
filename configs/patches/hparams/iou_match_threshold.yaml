@@ -6,3 +6,4 @@ hyperparameters:
     type: double
     minval: 0.2
     maxval: 0.8
+  bbox_loss_scale: 20.0  # lower bbox_loss_scale to prevent nan loss
