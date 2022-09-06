@@ -1,4 +1,4 @@
-name: SSD::Standard-Test
+name: SSD::Standard
 description: "{network_arch}-Model on {dataset}-Dataset{irc} - {action} - {augmentation}"
 hyperparameters:
   global_batch_size: 32
@@ -23,10 +23,10 @@ hyperparameters:
   use_smooth_l1: false
   max_eval_time: 240  # only validate 4 minutes
   bbox_loss_scale: 48.0
-workspace: MastersthesisBruno
-project: SSD
 min_validation_period:
   batches: 300
+workspace: MastersthesisBruno
+project: SSD-Standard
 searcher:
   name: single
   metric: map

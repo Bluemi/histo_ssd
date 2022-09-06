@@ -1,0 +1,8 @@
+variables:
+  description:
+    action: "iou_match_threshold"
+hyperparameters:
+  iou_match_threshold:
+    type: double
+    minval: 0.2
+    maxval: 0.8

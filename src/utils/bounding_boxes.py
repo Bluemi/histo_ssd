@@ -199,6 +199,8 @@ def assign_anchor_to_ground_truth_boxes(
 
     :param anchor_boxes: A batch of anchor boxes with shape (A, 4)
     :param ground_truth: A batch of ground truth boxes with shape (B, 4)
+    :param device: The device to compute on
+    :param iou_threshold: Match boxes if they have iou > iou_threshold
     """
     num_anchors, num_gt_boxes = anchor_boxes.shape[0], ground_truth.shape[0]
     # Element x_ij in the i-th row and j-th column is the IoU of the anchor box i and the ground-truth bounding box j
@@ -252,7 +254,9 @@ def offset_inverse(anchors: torch.Tensor, offset_preds: torch.Tensor) -> torch.T
     return predicted_bbox
 
 
-def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def multibox_target(
+        anchors: torch.Tensor, labels: torch.Tensor, iou_match_threshold: float = 0.5
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Label anchor boxes using ground-truth bounding boxes. Returns a tuple with three elements:
     1. The calculated offsets for assigned anchor boxes with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
@@ -263,6 +267,7 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
     :param anchors: List of anchor boxes with shape [1, NUM_ANCHOR_BOXES, 4] in tlbr-format.
     :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
                    The 5 comes from (classlabel, t, l, b, r). If the classlabel is -1, the sample will be ignored.
+    :param iou_match_threshold: Match ground truth and anchor box, if iou > iou_match_threshold
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
     """
@@ -278,7 +283,10 @@ def multibox_target(anchors: torch.Tensor, labels: torch.Tensor) -> Tuple[torch.
         indices = torch.nonzero(class_label >= 0).flatten()
         label = label[indices]
 
-        anchors_bbox_map = assign_anchor_to_ground_truth_boxes(anchors, label[:, 1:], device)
+        anchors_bbox_map = assign_anchor_to_ground_truth_boxes(
+            anchors, label[:, 1:], device, iou_threshold=iou_match_threshold
+        )
+
         bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, 4)
         # Initialize class labels and assigned bounding box coordinates with zeros
         class_labels = torch.zeros(num_anchors, dtype=torch.long, device=device)
