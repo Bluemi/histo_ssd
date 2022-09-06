@@ -68,10 +68,10 @@ case "$1" in
 			# p/profiling/clock.yaml
 		)
 
-		# base_config="./configs/standard_config.yaml"
+		base_config="./configs/standard_config.yaml"
 		# base_config="./configs/vgg16_early_config.yaml"
 		# base_config="./configs/scale_up_config.yaml"
-		base_config="./configs/center_config.yaml"
+		# base_config="./configs/center_config.yaml"
 
 		python3 ./utils/start_experiment.py -v $dry "$base_config" "${patches[@]}"
 		;;
