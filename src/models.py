@@ -125,7 +125,7 @@ def class_predictor(num_inputs: int, num_anchors: int, num_classes: int) -> nn.C
     return nn.Conv2d(num_inputs, num_anchors * (num_classes + 1), kernel_size=3, padding=1)
 
 
-def box_predictor(num_inputs: int, num_anchors: int) -> nn.Conv2d:
+def box_predictor(num_inputs: int, num_anchors: int, center_points: bool) -> nn.Conv2d:
     """
     Creates a layer for bounding box offsets, that can be executed on a feature map of shape
     [batch_size, num_inputs, y, x] and produces a bounding box offset prediction of shape
@@ -135,8 +135,10 @@ def box_predictor(num_inputs: int, num_anchors: int) -> nn.Conv2d:
 
     :param num_inputs: The number of input channels for this conv layer
     :param num_anchors: Number of anchor boxes per spatial position
+    :param center_points: Whether to only predict center points
     """
-    return nn.Conv2d(num_inputs, num_anchors * 4, kernel_size=3, padding=1)
+    predict_size = 2 if center_points else 4
+    return nn.Conv2d(num_inputs, num_anchors * predict_size, kernel_size=3, padding=1)
 
 
 def flatten_pred(pred: torch.Tensor) -> torch.Tensor:
@@ -536,7 +538,7 @@ def blk_forward(
 class SSDModel(nn.Module):
     def __init__(
             self, num_classes: int, backbone_arch: str = 'tiny', min_anchor_size: float = 0.2,
-            max_anchor_size: float = 0.9, debug: bool = False
+            max_anchor_size: float = 0.9, debug: bool = False, center_points: bool = False
     ):
         """
         Creates a new SSD Model with the given backbone architecture.
@@ -545,6 +547,8 @@ class SSDModel(nn.Module):
         :param min_anchor_size: The minimum size of the anchor boxes
         :param max_anchor_size: The maximum size of the anchor boxes
         :param debug: Whether to print status information
+        :param center_points: If set to True, only center point offsets are predicted. Width and height offsets are
+                              ignored.
         """
         super(SSDModel, self).__init__()
         self.debug = debug
@@ -552,6 +556,7 @@ class SSDModel(nn.Module):
         bbox_predictors = []
 
         self.num_classes = num_classes
+        self.center_points = center_points
 
         # create backbone
         if backbone_arch == 'tiny':
@@ -565,14 +570,21 @@ class SSDModel(nn.Module):
 
         self.backbone = backbone
 
-        self.sizes = self._define_sizes(len(backbone.get_out_channels()), smin=min_anchor_size, smax=max_anchor_size)
+        self.sizes = self._define_sizes(
+            len(backbone.get_out_channels()), smin=min_anchor_size, smax=max_anchor_size,
+            multiple_sizes=not self.center_points
+        )
 
-        self.ratios = [[1.0, 2.0, 0.5]] * len(backbone.get_out_channels())
+        ratios = [[1.0, 2.0, 0.5]] * len(backbone.get_out_channels())
+        if self.center_points:
+            # collapse all ratios into one
+            ratios = [[1.0]] * len(backbone.get_out_channels())
+        self.ratios = ratios
 
         for feature_map_index, out_channels in enumerate(self.backbone.get_out_channels()):
             num_anchors = self._get_num_anchors(feature_map_index)
             class_predictors.append(class_predictor(out_channels, num_anchors, num_classes))
-            bbox_predictors.append(box_predictor(out_channels, num_anchors))
+            bbox_predictors.append(box_predictor(out_channels, num_anchors, center_points))
 
         self.class_predictors = nn.ModuleList(class_predictors)
         self.bbox_predictors = nn.ModuleList(bbox_predictors)
@@ -580,7 +592,7 @@ class SSDModel(nn.Module):
     @staticmethod
     def from_state_dict(
         state_dict_path: str, num_classes: int, backbone_arch: str = 'tiny', min_anchor_size: float = 0.2,
-        max_anchor_size: float = 0.9, freeze_pretrained: bool = False, debug: bool = False
+        max_anchor_size: float = 0.9, freeze_pretrained: bool = False, debug: bool = False, center_points: bool = False
     ):
         """
         Creates a new SSD Model and loads the given state dict.
@@ -592,6 +604,7 @@ class SSDModel(nn.Module):
         :param max_anchor_size: The maximum size of the anchor boxes
         :param freeze_pretrained: If True, pretrained layers are frozen at the start.
         :param debug: Whether to print status information
+        :param center_points: Whether to only predict center points
         """
         assert backbone_arch in ('vgg16', 'vgg16early'), 'can only use pretrained vgg16'
         model = SSDModel(
@@ -599,7 +612,8 @@ class SSDModel(nn.Module):
             backbone_arch=backbone_arch,
             min_anchor_size=min_anchor_size,
             max_anchor_size=max_anchor_size,
-            debug=debug
+            debug=debug,
+            center_points=center_points,
         )
         if state_dict_path == 'DOWNLOAD':
             model_url = "https://download.pytorch.org/models/ssd300_vgg16_coco-b556d3b4.pth"
@@ -647,7 +661,7 @@ class SSDModel(nn.Module):
         return len(self.sizes[feature_map_index]) + len(self.ratios[feature_map_index]) - 1
 
     @staticmethod
-    def _define_sizes(num_feature_maps, smin=0.2, smax=0.9) -> List[List[float]]:
+    def _define_sizes(num_feature_maps, smin=0.2, smax=0.9, multiple_sizes=True) -> List[List[float]]:
         """
         See paper page 6.
         :param num_feature_maps: The number of sizes to calculate. Corresponds to the number of feature maps.
@@ -661,8 +675,11 @@ class SSDModel(nn.Module):
         for i in range(num_feature_maps):
             k = i+1
             size1 = _get_size(smin, smax, k, num_feature_maps)
-            size2 = math.sqrt(size1 * _get_size(smin, smax, k+1, num_feature_maps))  # sk
-            sizes.append([size1, size2])
+            local_sizes = [size1]
+            if multiple_sizes:
+                size2 = math.sqrt(size1 * _get_size(smin, smax, k+1, num_feature_maps))  # sk
+                local_sizes.append(size2)
+            sizes.append(local_sizes)
         return sizes
 
     def unfreeze(self):

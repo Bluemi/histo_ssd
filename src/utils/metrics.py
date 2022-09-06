@@ -154,10 +154,11 @@ def calc_loss(
 
     :param cls_preds: Class predictions of shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
     :param cls_labels: Class labels of shape [BATCH_SIZE, NUM_ANCHORS]
-    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4]
+    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4] or
+                       [BATCH_SIZE, NUM_ANCHORS * 2] if only center points are predicted.
     :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
-    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]. Each negative box has mask of (0, 0, 0, 0)
-                       while each positive box has mask (1, 1, 1, 1).
+    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4] or [BATCH_SIZE, NUM_ANCHOR_BOXES*2] for center
+                       points. Each negative box has mask of (0, 0, 0, 0) while each positive box has mask (1, 1, 1, 1).
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
     :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample
@@ -181,10 +182,12 @@ def calc_cls_bbox_loss(
 
     :param cls_preds: Class predictions of shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
     :param cls_labels: Class labels of shape [BATCH_SIZE, NUM_ANCHORS]
-    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4]
-    :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]
-    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4]. Each negative box has mask of (0, 0, 0, 0)
-                       while each positive box has mask (1, 1, 1, 1).
+    :param bbox_preds: Bounding Box offset predictions of shape [BATCH_SIZE, NUM_ANCHORS * 4] or
+                       [BATCH_SIZE, NUM_ANCHORS * 2] for center points.
+    :param bbox_labels: Bounding Box offsets with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4] or
+                        [BATCH_SIZE, NUM_ANCHOR_BOXES*2].
+    :param bbox_masks: A mask with shape [BATCH_SIZE, NUM_ANCHOR_BOXES*4] or [BATCH_SIZE, NUM_ANCHOR_BOXES*2] for center
+                       points. Each negative box has mask of (0, 0, 0, 0) while each positive box has mask (1, 1, 1, 1).
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
     :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample.
@@ -200,7 +203,7 @@ def calc_cls_bbox_loss(
     batch_size, num_anchors, num_classes = cls_preds.shape
     cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1)
     if negative_ratio is not None:
-        positive_mask = bbox_masks.reshape((batch_size, -1, 4))[:, :, 0]
+        positive_mask = bbox_masks.reshape((batch_size, num_anchors, -1))[:, :, 0]  # TODO: check whether this is right!
         assert positive_mask.shape == torch.Size([batch_size, num_anchors])
         negative_mask = 1.0 - positive_mask
 

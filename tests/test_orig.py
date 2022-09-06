@@ -18,11 +18,12 @@ from utils.bounding_boxes import multibox_target
 from utils.funcs import draw_boxes, debug
 
 DISPLAY_GROUND_TRUTH = True
-DATASET = 'banana'
+# DATASET = 'banana'
 DATASET = 'lizard'
+CENTER_POINTS = True
 
-MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
-# MODEL_LOAD_PATH = None
+# MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
+MODEL_LOAD_PATH = ''
 
 if DATASET == 'banana':
     NUM_CLASSES = 1
@@ -64,7 +65,7 @@ else:
 
 
 device = torch.device('cpu')
-net = SSDModel(num_classes=NUM_CLASSES, backbone_arch='tiny')
+net = SSDModel(num_classes=NUM_CLASSES, backbone_arch='tiny', center_points=CENTER_POINTS)
 trainer = torch.optim.SGD(net.parameters(), lr=0.2, weight_decay=5e-4)
 
 
@@ -89,7 +90,7 @@ else:
             # Generate multiscale anchor boxes and predict their classes and offsets
             anchors, cls_preds, bbox_preds = net(x)
             # Label the classes and offsets of these anchor boxes
-            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y)
+            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, Y, CENTER_POINTS)
             # Calculate the loss function using the predicted and labeled values of the classes and offsets
             l = calc_loss(cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0)
             l.backward()
@@ -111,9 +112,6 @@ else:
 mean_average_precision = MeanAveragePrecision(
     box_format='xyxy', class_metrics=False, max_detection_thresholds=[1, 10, 100],
 )
-mean_average_precision2 = MeanAveragePrecision(
-    box_format='xyxy', class_metrics=False, max_detection_thresholds=[1, 10, 100],
-)
 
 do_display = False
 
@@ -133,8 +131,7 @@ for batch in val_iter:
 
     num_batch_predictions = sum(map(len, batch_output))
     debug(num_batch_predictions)
-    update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output)
-    update_mean_average_precision(mean_average_precision2, ground_truth_boxes, batch_output, divide_limit=100)
+    update_mean_average_precision(mean_average_precision, ground_truth_boxes, batch_output, divide_limit=100)
 
     if do_display:
         for image, ground_truth_box, output in zip(images, ground_truth_boxes, batch_output):
@@ -163,10 +160,6 @@ for batch in val_iter:
 
 mean_average_precision_clock = Clock()
 mean_ap = mean_average_precision.compute()
-mean_average_precision_clock.sap('map.compute()')
-
-mean_ap2 = mean_average_precision2.compute()
-mean_average_precision_clock.sap('maplimit.compute()')
+mean_average_precision_clock.sap('map limit.compute()')
 
 pprint(mean_ap)
-pprint(mean_ap2)

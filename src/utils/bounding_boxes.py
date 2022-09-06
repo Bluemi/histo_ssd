@@ -255,7 +255,7 @@ def offset_inverse(anchors: torch.Tensor, offset_preds: torch.Tensor) -> torch.T
 
 
 def multibox_target(
-        anchors: torch.Tensor, labels: torch.Tensor, iou_match_threshold: float = 0.5
+        anchors: torch.Tensor, labels: torch.Tensor, center_points, iou_match_threshold: float = 0.5,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Label anchor boxes using ground-truth bounding boxes. Returns a tuple with three elements:
@@ -267,6 +267,7 @@ def multibox_target(
     :param anchors: List of anchor boxes with shape [1, NUM_ANCHOR_BOXES, 4] in tlbr-format.
     :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
                    The 5 comes from (classlabel, t, l, b, r). If the classlabel is -1, the sample will be ignored.
+    :param center_points: Whether the labels should be created for center points only or not
     :param iou_match_threshold: Match ground truth and anchor box, if iou > iou_match_threshold
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
@@ -274,6 +275,8 @@ def multibox_target(
     batch_size, anchors = labels.shape[0], anchors.squeeze(0)
     batch_offset, batch_mask, batch_class_labels = [], [], []
     device, num_anchors = anchors.device, anchors.shape[0]
+
+    bbox_size = 2 if center_points else 4
 
     for i in range(batch_size):
         label = labels[i, :, :]
@@ -287,20 +290,19 @@ def multibox_target(
             anchors, label[:, 1:], device, iou_threshold=iou_match_threshold
         )
 
-        bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, 4)
+        bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, bbox_size)
         # Initialize class labels and assigned bounding box coordinates with zeros
         class_labels = torch.zeros(num_anchors, dtype=torch.long, device=device)
+        # TODO: check whether bbox_size or 4 is right here
         assigned_bb = torch.zeros((num_anchors, 4), dtype=torch.float32, device=device)
         # Label classes of anchor boxes using their assigned ground-truth bounding boxes.
         # If an anchor box is not assigned any, we label its class as background (the value remains zero)
         indices_true = torch.nonzero(anchors_bbox_map >= 0)
         bb_idx = anchors_bbox_map[indices_true]
-        # debug(label.shape)
-        # debug(label[bb_idx, 0].max())
         class_labels[indices_true] = label[bb_idx, 0].long() + 1
         assigned_bb[indices_true] = label[bb_idx, 1:]
         # Offset transformation
-        offset = offset_boxes(anchors, assigned_bb) * bbox_mask
+        offset = offset_boxes(anchors, assigned_bb)[:, :bbox_size] * bbox_mask
         batch_offset.append(offset.reshape(-1))
         batch_mask.append(bbox_mask.reshape(-1))
         batch_class_labels.append(class_labels)
