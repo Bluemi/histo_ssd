@@ -57,6 +57,7 @@ class DefaultTrial(PyTorchTrial):
         self.bbox_loss_scale = self.context.get_hparams().get('bbox_loss_scale', 1.0)
         self.dataset_image_size = self.context.get_hparam('dataset_image_size')
         self.always_compute_map = self.context.get_hparams().get('always_compute_map', False)
+        self.iou_match_threshold = self.context.get_hparams().get('iou_match_threshold', 0.5)
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -176,7 +177,9 @@ class DefaultTrial(PyTorchTrial):
             self.pretrained = False  # dont unfreeze again
 
         anchors, cls_preds, bbox_preds = self.model(image)
-        bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, boxes)
+        bbox_labels, bbox_masks, cls_labels = multibox_target(
+            anchors, boxes, iou_match_threshold=self.iou_match_threshold
+        )
         cls_loss, bbox_loss = calc_cls_bbox_loss(
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
             normalize_per_batch=self.normalize_per_batch, use_smooth_l1=self.use_smooth_l1,
@@ -272,7 +275,9 @@ class DefaultTrial(PyTorchTrial):
         for batch in data_loader:
             anchors, cls_preds, bbox_preds = self.model(batch['image'].to(self.context.device))
 
-            bbox_labels, bbox_masks, cls_labels = multibox_target(anchors, batch['boxes'].to(self.context.device))
+            bbox_labels, bbox_masks, cls_labels = multibox_target(
+                anchors, batch['boxes'].to(self.context.device), iou_match_threshold=self.iou_match_threshold
+            )
             # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
