@@ -1,4 +1,4 @@
-name: SSD::Standard-Test::Scale-Up
+name: SSD::Scale-Up
 description: "{network_arch}-Model on {dataset}-Dataset{irc} - {action} - {augmentation}"
 hyperparameters:
   global_batch_size: 32
