@@ -68,12 +68,16 @@ def main():
         if args.verbose:
             print('patched "{}": {} -> {}'.format(config_key, old_value, experiment_config[config_key]))
 
-    if args.verbose >= 2:
-        pprint(experiment_config)
+    # check config
+    assert 'workspace' in experiment_config
+    assert 'project' in experiment_config
 
     if args.dry:
         pprint(experiment_config)
     else:
+        if args.verbose >= 2:
+            pprint(experiment_config)
+
         d = Determined(master='https://dt1.f4.htw-berlin.de:8443')
         experiment_ref = d.create_experiment(experiment_config, MODEL_DIR)
         print(experiment_ref.id)

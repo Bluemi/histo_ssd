@@ -64,6 +64,11 @@ case "$1" in
 			# p/searcher/adaptive_asha_few.yaml
 			# p/searcher/random.yaml
 
+			p/workspaces/ssd_standard.yaml
+			# p/workspaces/ssd_scaleup.yaml
+			# p/workspaces/ssd_vgg16e.yaml
+			# p/workspaces/ssd_centerpoints.yaml
+
 			p/profiling/clock.yaml
 		)
 
