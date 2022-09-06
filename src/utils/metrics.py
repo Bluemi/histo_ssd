@@ -145,7 +145,7 @@ def box_indices_inside(inner_boxes: torch.Tensor, outer_box: torch.Tensor) -> to
 
 def calc_loss(
         cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
-        normalize_per_batch: bool = True, use_smooth_l1: bool = True,
+        normalize_per: str = 'none', use_smooth_l1: bool = True,
 ) -> torch.Tensor:
     """
     Calculates a loss value from class predictions and bounding box regression.
@@ -161,19 +161,20 @@ def calc_loss(
                        points. Each negative box has mask of (0, 0, 0, 0) while each positive box has mask (1, 1, 1, 1).
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
-    :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample
+    :param normalize_per: If set to "batch", hard negative samples are normalized per batch, if set to "sample" it is
+                          normalized per sample, if set to "none" simply the mean is calculated.
     :param use_smooth_l1: Whether to use smoothed version of l1 loss
     :return: A single loss value
     """
     cls_loss, bbox_loss = calc_cls_bbox_loss(
-        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio, normalize_per_batch, use_smooth_l1
+        cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio, normalize_per, use_smooth_l1
     )
     return (cls_loss + bbox_loss).mean()
 
 
 def calc_cls_bbox_loss(
         cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio: Optional[float] = None,
-        normalize_per_batch: bool = True, use_smooth_l1: bool = True,
+        normalize_per: str = 'none', use_smooth_l1: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Calculates a loss value from class predictions and bounding box regression.
@@ -190,7 +191,8 @@ def calc_cls_bbox_loss(
                        points. Each negative box has mask of (0, 0, 0, 0) while each positive box has mask (1, 1, 1, 1).
     :param negative_ratio: If set enables hard negative mining. (negative_ratio * NUM_POSSIBLE_SAMPLES) negative samples
                            are used. If not set or set to None, all negative samples will be used.
-    :param normalize_per_batch: If set to True, hard negative samples are normalized per batch, otherwise per sample.
+    :param normalize_per: If set to "batch", hard negative samples are normalized per batch, if set to "sample" it is
+                          normalized per sample, if set to "none" simply the mean is calculated.
     :param use_smooth_l1: Whether to use smoothed version of l1 loss
     :return: A tuple [class_loss, bbox_loss] each with shape [BATCHSIZE].
     """
@@ -203,7 +205,7 @@ def calc_cls_bbox_loss(
     batch_size, num_anchors, num_classes = cls_preds.shape
     cls = cls_loss(cls_preds.reshape(-1, num_classes), cls_labels.reshape(-1)).reshape(batch_size, -1)
     if negative_ratio is not None:
-        positive_mask = bbox_masks.reshape((batch_size, num_anchors, -1))[:, :, 0]  # TODO: check whether this is right!
+        positive_mask = bbox_masks.reshape((batch_size, num_anchors, -1))[:, :, 0]
         assert positive_mask.shape == torch.Size([batch_size, num_anchors])
         negative_mask = 1.0 - positive_mask
 
@@ -224,9 +226,15 @@ def calc_cls_bbox_loss(
         cls = cls * positive_mask  # disable most of the negative samples
         # cls = torch.mean(cls, dim=1)  # use mean again, instead of sum / N
         # one could also try num_samples -> torch.mean(num_samples) to give all samples equal weight
-        if normalize_per_batch:
+        if normalize_per == 'batch':
             num_samples = torch.mean(num_samples)  # give all samples in batch equal weight
-        cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
+            cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
+        elif normalize_per == 'sample':
+            cls = torch.sum(cls, dim=1) / torch.maximum(num_samples, torch.tensor(EPSILON))
+        elif normalize_per == 'none':
+            cls = torch.mean(cls, dim=1)
+        else:
+            raise ValueError('unknown normalize_per: "{}"'.format(normalize_per))
     else:
         cls = torch.mean(cls, dim=1)
     bbox = bbox_loss(bbox_preds * bbox_masks, bbox_labels * bbox_masks).mean(dim=1)

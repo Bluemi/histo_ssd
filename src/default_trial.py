@@ -23,7 +23,6 @@ WRITE_PREDICTIONS_BATCH = 2900
 NUM_PRED_LIMIT = 700  # limit number of predictions per sample (there are samples with 666 ground truth boxes)
 # only use some samples for mean average precision update. Only allow predictions for 600 images
 MAX_MAP_UPDATES = NUM_PRED_LIMIT * 100
-DEFAULT_BBOX_LOSS_SCALE = 48.0
 USE_MAP_UNDIV = False
 
 
@@ -36,8 +35,8 @@ class DefaultTrial(PyTorchTrial):
         self.negative_ratio = self.context.get_hparams().get('negative_ratio')
         if self.negative_ratio is None:
             print('WARN: hard negative mining is disabled')
-        self.normalize_per_batch = self.context.get_hparams().get('hnm_norm_per_batch', True)
-        assert isinstance(self.normalize_per_batch, bool)
+        self.normalize_per: str = self.context.get_hparams().get('hnm_norm_per', 'none')
+        assert isinstance(self.normalize_per, str)
         self.use_smooth_l1 = self.context.get_hparams().get('use_smooth_l1', True)
         self.nms_threshold = self.context.get_hparams().get('nms_threshold', 0.5)
         backbone_arch = self.context.get_hparam('backbone_arch')
@@ -185,7 +184,7 @@ class DefaultTrial(PyTorchTrial):
         )
         cls_loss, bbox_loss = calc_cls_bbox_loss(
             cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=self.negative_ratio,
-            normalize_per_batch=self.normalize_per_batch, use_smooth_l1=self.use_smooth_l1,
+            normalize_per=self.normalize_per, use_smooth_l1=self.use_smooth_l1,
         )
         loss = (cls_loss + bbox_loss * self.bbox_loss_scale).mean()
         self.context.backward(loss)
@@ -285,9 +284,9 @@ class DefaultTrial(PyTorchTrial):
             # don't use negative_ratio-hparam or norm_per_batch-hparam for evaluation
             cls_loss, bbox_loss = calc_cls_bbox_loss(
                 cls_preds, cls_labels, bbox_preds, bbox_labels, bbox_masks, negative_ratio=3.0,
-                use_smooth_l1=self.use_smooth_l1,
+                use_smooth_l1=self.use_smooth_l1
             )
-            loss = (cls_loss + bbox_loss * DEFAULT_BBOX_LOSS_SCALE).mean()  # we do not scale loss here for evaluation
+            loss = (cls_loss + bbox_loss).mean()  # we do not scale loss here for evaluation
             losses.append(loss)
 
             predict_clock = Clock()
@@ -347,7 +346,7 @@ class DefaultTrial(PyTorchTrial):
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
-        result['bbox_loss'] = torch.mean(bbox_loss * DEFAULT_BBOX_LOSS_SCALE)
+        result['bbox_loss'] = torch.mean(bbox_loss)
 
         if self.use_clock:
             eval_clock.sap('eval dataset')
