@@ -300,7 +300,6 @@ def multibox_target(
         bbox_mask = ((anchors_bbox_map >= 0).float().unsqueeze(-1)).repeat(1, bbox_size)
         # Initialize class labels and assigned bounding box coordinates with zeros
         class_labels = torch.zeros(num_anchors, dtype=torch.long, device=device)
-        # TODO: check whether bbox_size or 4 is right here
         assigned_bb = torch.zeros((num_anchors, 4), dtype=torch.float32, device=device)
         # Label classes of anchor boxes using their assigned ground-truth bounding boxes.
         # If an anchor box is not assigned any, we label its class as background (the value remains zero)
