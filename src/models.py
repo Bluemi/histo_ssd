@@ -739,7 +739,8 @@ def predict(
 
     :param anchors: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, 4].
     :param cls_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1].
-    :param bbox_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4].
+    :param bbox_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4] or [BATCH_SIZE, NUM_ANCHORS * 2] for center
+                       points.
     :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
     :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
                               The smaller the threshold, the fewer boxes are kept.

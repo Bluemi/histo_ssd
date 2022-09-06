@@ -22,8 +22,8 @@ DISPLAY_GROUND_TRUTH = True
 DATASET = 'lizard'
 CENTER_POINTS = True
 
-# MODEL_LOAD_PATH = '../models/{}_model2.pth'.format(DATASET)
-MODEL_LOAD_PATH = ''
+MODEL_LOAD_PATH = '../models/{}_center_model.pth'.format(DATASET)
+# MODEL_LOAD_PATH = ''
 
 if DATASET == 'banana':
     NUM_CLASSES = 1

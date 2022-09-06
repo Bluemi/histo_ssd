@@ -245,10 +245,17 @@ def offset_inverse(anchors: torch.Tensor, offset_preds: torch.Tensor) -> torch.T
     TODO: replace magic numbers with arguments
 
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
+
+    :param anchors: Tensor with shape [NUM_ANCHORS, 4]
+    :param offset_preds: Tensor with shape [NUM_ANCHORS, 4] or [NUM_ANCHORS, 2] for center points
     """
+    center_points = offset_preds.shape[1] == 2
     anc = tlbr_to_yxhw(anchors)
     pred_bbox_xy = (offset_preds[:, :2] * anc[:, 2:] / 10) + anc[:, :2]
-    pred_bbox_wh = torch.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
+    if center_points:
+        pred_bbox_wh = anc[:, 2:]
+    else:
+        pred_bbox_wh = torch.exp(offset_preds[:, 2:] / 5) * anc[:, 2:]
     pred_bbox = torch.cat((pred_bbox_xy, pred_bbox_wh), dim=1)
     predicted_bbox = yxhw_to_tlbr(pred_bbox)
     return predicted_bbox
@@ -350,7 +357,8 @@ def multibox_detection(
     for background. Bounding boxes without detection have -1 label class.
 
     :param cls_probs: The predicted class probabilities with shape (BATCH_SIZE, NUM_CLASSES, NUM_ANCHOR_BOXES)
-    :param offset_preds: The predicted offsets with shape (BATCH_SIZE, NUM_ANCHOR_BOXES*4)
+    :param offset_preds: The predicted offsets with shape (BATCH_SIZE, NUM_ANCHORS*4) or (BATCH_SIZE, NUM_ANCHORS*2) for
+                         center points.
     :param anchors: The anchor boxes which was predicted with shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 4)
     :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
                               The smaller the threshold, the fewer boxes are kept.
@@ -359,9 +367,12 @@ def multibox_detection(
     """
     device, batch_size = cls_probs.device, cls_probs.shape[0]
     anchors = anchors.squeeze(0)
+    num_anchors = anchors.shape[0]
+    bbox_size = offset_preds.shape[1] // num_anchors
     out = []
     for i in range(batch_size):
-        cls_prob, offset_pred = cls_probs[i], offset_preds[i].reshape(-1, 4)
+        cls_prob = cls_probs[i]
+        offset_pred = offset_preds[i].reshape(-1, bbox_size)
         conf, class_id = torch.max(cls_prob[1:], 0)  # ignore background probability
 
         # sort out all anchor box samples with conf <= pos_threshold
