@@ -12,7 +12,7 @@ hyperparameters:
   image_prediction_max_images: 0
   negative_ratio: 4.0
   min_anchor_size: 0.0555
-  max_anchor_size: 0.575
+  max_anchor_size: 0.53
   nms_threshold: 0.5
   aug_norm: false
   aug_rotate: true
