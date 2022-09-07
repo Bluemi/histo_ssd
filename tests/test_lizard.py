@@ -11,18 +11,10 @@ from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.augmentations import RandomRotate, RandomFlip
 from utils.bounding_boxes import box_area
-from utils.funcs import debug, draw_boxes
+from utils.funcs import draw_boxes, DEFAULT_COLORS1
 from utils.metrics import box_indices_inside
 
 SHOW_IMAGE = False
-TEST_COLORS = [
-    (0, 0, 0),
-    (255, 0, 0),
-    (0, 255, 0),
-    (0, 0, 255),
-    (255, 0, 255),
-    (255, 255, 0),
-]
 
 
 def main():
@@ -57,9 +49,17 @@ def test_box_plotting(dataset):
         image = sample['image']
         boxes = filter_boxes(sample['boxes'])
         image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+        # boxes_third = len(boxes) // 3
+        boxes1 = boxes
         draw_boxes(
-            image, torch.tensor(boxes[:, 1:]), box_format='ltrb',
-            color=TEST_COLORS, color_indices=torch.tensor(boxes[:, 0])
+            image, torch.tensor(boxes1[:, 1:]), box_format='ltrb',
+            color=DEFAULT_COLORS1*0.7, color_indices=torch.tensor(boxes1[:, 0]), sign='box', color_mode='set',
+        )
+        boxes2 = np.copy(boxes) # np.copy(boxes[:boxes_third*2])
+        boxes2[:, 1:] += (np.random.rand(boxes2.shape[0], 4)-0.5)*0.02
+        draw_boxes(
+            image, torch.tensor(boxes2[:, 1:]), box_format='ltrb',
+            color=DEFAULT_COLORS1*1.4, color_indices=torch.tensor(boxes2[:, 0]), sign='box', color_mode='set'
         )
         plt.imshow(image)
         plt.show()

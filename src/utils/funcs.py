@@ -6,6 +6,14 @@ import torch
 from matplotlib import pyplot as plt
 
 Color = NewType('Color', Tuple[int, int, int])
+DEFAULT_COLORS1 = torch.tensor([
+    [0, 255, 255],
+    [255, 0, 0],
+    [0, 255, 0],
+    [0, 0, 255],
+    [255, 0, 255],
+    [255, 255, 0],
+])
 
 
 def show_image(image):
@@ -15,8 +23,8 @@ def show_image(image):
 
 def draw_boxes(
         image: torch.Tensor, bounding_boxes: torch.Tensor,
-        color: Union[Tuple[int, int, int], List[Tuple[int, int, int]], int, str, None] = 'random',
-        color_indices: Optional[torch.Tensor] = None, box_format: str = 'tlbr'
+        color: Union[Tuple[int, int, int], List[Tuple[int, int, int]], int, str, torch.Tensor, None] = 'random',
+        color_indices: Optional[torch.Tensor] = None, box_format: str = 'tlbr', sign: str = 'box', color_mode='set',
 ):
     """
     Draws the given bounding boxes into the given image.
@@ -27,7 +35,39 @@ def draw_boxes(
     :param color_indices: Tensor with shape (nBoxes,). Gives the color index for each box.
     :param box_format: The format of the bounding box. Either tlbr (top, left, bottom, right) or
                        ltrb (left, top, right, bottom).
+    :param sign: Which sign to draw. One of ['box', 'cross']. Defaults to box.
+    :param color_mode: One of ['set', 'add']. If set, colors are set, if add colors are added.
     """
+    def _draw_box(img, l, t, r, bot_arg, col):
+        lines = [
+            img[t, l:r],  # draw top line
+            img[bot_arg, l:r],  # draw bottom line
+            img[t:bot_arg, l],  # draw left line
+            img[t:bot_arg, r],  # draw right line
+        ]
+        for line in lines:
+            if color_mode == 'set':
+                line[:] = torch.clamp(col, torch.tensor(0), torch.tensor(255))
+            elif color_mode == 'add':
+                line[:] = torch.clamp(line + col, torch.tensor(0), torch.tensor(255))
+
+    def _draw_cross(img, l, t, r, b, col):
+        cross_size = 5
+        center_x = torch.div((l + r), 2, rounding_mode='floor')
+        center_y = torch.div((t + b), 2, rounding_mode='floor')
+
+        # draw horizontal line
+        img[center_y, center_x-cross_size:center_x+cross_size] = col
+        # draw vertical line
+        img[center_y-cross_size:center_y+cross_size, center_x] = col
+
+    if sign == 'box':
+        draw_function = _draw_box
+    elif sign == 'cross':
+        draw_function = _draw_cross
+    else:
+        raise ValueError('Unknown sign: "{}"'.format(sign))
+
     bounding_boxes = bounding_boxes.clone()
     # scale box to int position
     if bounding_boxes.dtype == torch.float32:
@@ -50,7 +90,9 @@ def draw_boxes(
     if len(image.shape) == 3 and image.shape[-1] == 4:
         image = image[:, :, 0:3]
 
-    if not color:
+    if isinstance(color, torch.Tensor):
+        pass
+    elif not color:
         color = [0.0]
     elif color == 'random':
         pass
@@ -64,7 +106,7 @@ def draw_boxes(
     for index, box in enumerate(bounding_boxes):
         if color_indices is not None:
             index = color_indices[index]
-        if isinstance(color, list):
+        if isinstance(color, list) or isinstance(color, torch.Tensor):
             c = color[index % len(color)]
         else:
             c = (torch.rand(3) * 255).to(torch.uint8)
@@ -87,10 +129,7 @@ def draw_boxes(
             raise ValueError('Unknown box format: {}'.format(box_format))
 
         # draw box
-        image[top, left:right] = c  # draw top line
-        image[bot, left:right] = c  # draw bottom line
-        image[top:bot, left] = c  # draw left line
-        image[top:bot, right] = c  # draw right line
+        draw_function(image, left, top, right, bot, c)
 
 
 def debug(arg):
