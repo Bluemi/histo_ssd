@@ -15,6 +15,14 @@ from utils.funcs import debug, draw_boxes
 from utils.metrics import box_indices_inside
 
 SHOW_IMAGE = False
+TEST_COLORS = [
+    (0, 0, 0),
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 0, 255),
+    (255, 255, 0),
+]
 
 
 def main():
@@ -36,10 +44,25 @@ def main():
     # debug(len(validation))
 
     # show_max_boxes(whole_dataset)
-    show_area_stats(whole_dataset)
+    # show_area_stats(whole_dataset)
     # show_images(whole_dataset)
     # show_distributions(whole_dataset, train, validation)
     # test_cut(whole_dataset)
+    test_box_plotting(whole_dataset)
+
+
+def test_box_plotting(dataset):
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        image = sample['image']
+        boxes = filter_boxes(sample['boxes'])
+        image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+        draw_boxes(
+            image, torch.tensor(boxes[:, 1:]), box_format='ltrb',
+            color=TEST_COLORS, color_indices=torch.tensor(boxes[:, 0])
+        )
+        plt.imshow(image)
+        plt.show()
 
 
 def wrap_dataset(dataset):

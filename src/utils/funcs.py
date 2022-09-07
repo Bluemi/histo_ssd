@@ -1,6 +1,6 @@
 import inspect
 import sys
-from typing import Union, List, NewType, Tuple
+from typing import Union, List, NewType, Tuple, Optional
 
 import torch
 from matplotlib import pyplot as plt
@@ -16,7 +16,7 @@ def show_image(image):
 def draw_boxes(
         image: torch.Tensor, bounding_boxes: torch.Tensor,
         color: Union[Tuple[int, int, int], List[Tuple[int, int, int]], int, str, None] = 'random',
-        box_format: str = 'tlbr'
+        color_indices: Optional[torch.Tensor] = None, box_format: str = 'tlbr'
 ):
     """
     Draws the given bounding boxes into the given image.
@@ -24,6 +24,7 @@ def draw_boxes(
     :param bounding_boxes: The bounding boxes to draw. A tensor of shape (nBoxes, 4).
                            See box_format for more information.
     :param color: The colors to use. If None, black is used. Uses cycling for more boxes than colors.
+    :param color_indices: Tensor with shape (nBoxes,). Gives the color index for each box.
     :param box_format: The format of the bounding box. Either tlbr (top, left, bottom, right) or
                        ltrb (left, top, right, bottom).
     """
@@ -56,7 +57,13 @@ def draw_boxes(
     elif not isinstance(color, list):
         color = [color]
 
+    if color_indices is not None:
+        if color_indices.dtype != torch.int32:
+            color_indices = color_indices.to(torch.int32)
+
     for index, box in enumerate(bounding_boxes):
+        if color_indices is not None:
+            index = color_indices[index]
         if isinstance(color, list):
             c = color[index % len(color)]
         else:
