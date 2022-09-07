@@ -1,5 +1,5 @@
 hyperparameters:
   bbox_loss_scale:
     type: double
-    minval: 0.5
-    maxval: 5.0
+    minval: 3
+    maxval: 8
