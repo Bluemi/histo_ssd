@@ -14,16 +14,16 @@ patches=(
 
 	# p/augmentation/test_rotate_flip.yaml
 	# p/hparams/lr_narrow.yaml
-	p/hparams/lr.yaml
+	# p/hparams/lr.yaml
 	# p/hparams/sizes.yaml
 	# p/hparams/sizes_small.yaml
 	# p/hparams/sizes_med.yaml
 	# p/hparams/negative_ratio_narrow.yaml
 	# p/hparams/image_stride.yaml
 	# p/hparams/smoothl1.yaml
-	# p/hparams/nms_threshold.yaml
-	p/hparams/bbox_loss_scale.yaml
-	# p/hparams/iou_match_threshold.yaml
+	p/hparams/nms_threshold.yaml
+	p/hparams/iou_match_threshold.yaml
+	# p/hparams/bbox_loss_scale.yaml
 
 	p/metrics/loss.yaml
 	# p/metrics/map.yaml
@@ -39,5 +39,5 @@ patches=(
 	# p/searcher/adaptive_asha_few.yaml
 	p/searcher/random.yaml
 
-	p/profiling/clock.yaml
+	# p/profiling/clock.yaml
 )
