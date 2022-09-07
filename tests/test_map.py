@@ -1,9 +1,9 @@
-from pprint import pprint
-
 import torch
-from torchmetrics import BinnedAveragePrecision
 from torchmetrics.detection import MeanAveragePrecision
-from torchmetrics.functional import average_precision
+from torchmetrics.functional import average_precision, precision_recall_curve
+from torchmetrics import BinnedAveragePrecision
+import matplotlib.pyplot as plt
+from sklearn import metrics
 
 from utils.bounding_boxes import intersection_over_union
 
@@ -106,7 +106,10 @@ def main():
                 [0.6, 0.6, 0.7, 0.7],  # miss
                 [0.2, 0.2, 0.4, 0.4],  # hit
             ]),
-            scores=torch.tensor([0.5, 0.3]),
+            scores=torch.tensor([
+                0.3,
+                0.5
+            ]),
             labels=torch.tensor([0, 0]),
         )
     ]
@@ -129,14 +132,22 @@ def main():
 
 
 def test():
-    ap_preds = [0.9, 0.95]
-    ap_targets = [0, 0]
-    # ap = average_precision(torch.tensor(ap_preds), torch.tensor(ap_targets))
-    bap = BinnedAveragePrecision(1, num_thresholds=10)
-    bap.update(torch.tensor(ap_preds), torch.tensor(ap_targets))
-    print(bap.compute())
+    ap_preds = torch.tensor([0.3, 0.5])
+    ap_targets = torch.tensor([0, 1])
+
+    ap_sklearn = metrics.average_precision_score(ap_targets, ap_preds)
+    ap = average_precision(ap_preds, ap_targets)
+    precision, recall, thresholds = precision_recall_curve(ap_preds, ap_targets)
+    auc_value = metrics.auc(ap_preds, ap_targets)
+
+    plt.plot(recall, precision)
+    plt.xlabel('{:.3f}'.format(ap))
+    print('ap sklearn: {:.3f}'.format(ap_sklearn))
+    print('ap: {:.3f}'.format(ap))
+    print('thresholds:', thresholds)
+    plt.show()
 
 
 if __name__ == '__main__':
-    # main()
-    test()
+    main()
+    # test()
