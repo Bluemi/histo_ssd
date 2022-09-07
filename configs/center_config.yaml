@@ -23,7 +23,7 @@ hyperparameters:
   use_clock: false
   use_smooth_l1: false
   max_eval_time: 240  # only validate 4 minutes
-  bbox_loss_scale: 1.0
+  bbox_loss_scale: 6.5
 min_validation_period:
   batches: 300
 workspace: MastersthesisBruno
