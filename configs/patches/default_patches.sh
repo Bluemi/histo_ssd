@@ -37,7 +37,8 @@ patches=(
 
 	# p/searcher/adaptive_asha.yaml
 	# p/searcher/adaptive_asha_few.yaml
-	p/searcher/random.yaml
+	# p/searcher/random.yaml
+	p/searcher/random_short.yaml
 
 	p/profiling/clock.yaml
 )

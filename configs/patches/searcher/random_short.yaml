@@ -1,0 +1,5 @@
+searcher:
+  name: random
+  max_length:
+    batches: 2100
+  max_trials: 36
