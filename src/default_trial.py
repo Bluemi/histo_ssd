@@ -15,7 +15,7 @@ from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.clock import Clock
-from utils.funcs import draw_boxes
+from utils.funcs import draw_boxes, DEFAULT_COLORS1
 from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
@@ -214,23 +214,22 @@ class DefaultTrial(PyTorchTrial):
         :param image_counter: The number of images already logged for this epoch.
         """
         image_prediction_max_images = self.context.get_hparam('image_prediction_max_images')
-        for image, boxes, output in zip(batch['image'], batch['boxes'], batch_output):
+        image_prediction_threshold = self.context.get_hparam('image_prediction_score_threshold')
+        for image, ground_truth_boxes, output in zip(batch['image'], batch['boxes'], batch_output):
             image = image.to(self.context.device)
             draw_image = (image * 255.0).squeeze(0).permute(1, 2, 0).long()
 
-            # draw predictions
-            for row in output:
-                score = float(row[1])
-                if score < self.context.get_hparam('image_prediction_score_threshold'):
-                    continue
-                bbox = row[2:6].unsqueeze(0)
-                draw_boxes(draw_image, bbox, color=(255, 0, 0), box_format='ltrb')
             # draw ground truth
-            for box in boxes:
-                if box[0] < 0:
-                    continue
-                bbox = box[1:5].unsqueeze(0)
-                draw_boxes(draw_image, bbox, color=(0, 255, 0), box_format='ltrb')
+            draw_boxes(
+                draw_image, ground_truth_boxes[:, 1:],  box_format='ltrb',
+                color=DEFAULT_COLORS1*0.7, color_indices=ground_truth_boxes[:, 0],
+            )
+            # draw predictions
+            shown_output = output[output[:, 1] > image_prediction_threshold]
+            draw_boxes(
+                draw_image, shown_output[:, 2:], box_format='ltrb',
+                color=DEFAULT_COLORS1*1.4, color_indices=shown_output[:, 0],
+            )
 
             fig = plt.figure(figsize=(10, 10))
             plt.imshow(draw_image.cpu())
