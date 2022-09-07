@@ -28,20 +28,20 @@ case "$1" in
 		fi
 
 		case "$1" in
-			d|default)
-				source ./p/default_patches.sh
+			std|standard)
+				source ./p/standard_patches.sh
 				;;
 			e|early)
 				source ./p/early_patches.sh
 				;;
-			s|scaleup)
+			scu|scaleup)
 				source ./p/scaleup_patches.sh
 				;;
 			c|center)
 				source ./p/center_patches.sh
 				;;
 			*)
-				echo "ERROR: unknown patch configuration: $1"
+				echo "ERROR: unknown patch configuration: \"$1\""
 				exit 1
 				;;
 		esac
