@@ -1,6 +1,6 @@
 import torch
 from torchmetrics.detection import MeanAveragePrecision
-from torchmetrics.functional import average_precision, precision_recall_curve
+from torchmetrics.functional import average_precision, precision_recall_curve, auc
 from torchmetrics import BinnedAveragePrecision
 import matplotlib.pyplot as plt
 from sklearn import metrics
@@ -122,32 +122,39 @@ def main():
             labels=torch.tensor([0, 0]),
         )
     ]
-    for name, mean_ap in [('torch', MeanAveragePrecision()), ('\nmy', MAP(1))]:
+    for name, mean_ap in [('torch', MeanAveragePrecision()), ('my', MAP(1))]:
         print('{}:'.format(name))
         mean_ap.update(preds, target)
         result = mean_ap.compute()
         # for key in ('map', 'map_50', 'map_75'):
         for key in ('map_50',):
             print('  {}: {}'.format(key, result[key]))
+    print('\n')
 
 
 def test():
-    ap_preds = torch.tensor([0.3, 0.5])
-    ap_targets = torch.tensor([0, 1])
+    binned_ap = BinnedAveragePrecision(num_classes=1, thresholds=101)
+    ap_preds = torch.tensor([0.0, 0.3, 0.5])
+    ap_targets = torch.tensor([1, 0, 1])
 
     ap_sklearn = metrics.average_precision_score(ap_targets, ap_preds)
     ap = average_precision(ap_preds, ap_targets)
+    binned_ap.update(ap_preds, ap_targets)
+    bap = binned_ap.compute()
     precision, recall, thresholds = precision_recall_curve(ap_preds, ap_targets)
-    auc_value = metrics.auc(ap_preds, ap_targets)
+    auc_val = auc(recall, precision)
 
     plt.plot(recall, precision)
     plt.xlabel('{:.3f}'.format(ap))
     print('ap sklearn: {:.3f}'.format(ap_sklearn))
-    print('ap: {:.3f}'.format(ap))
-    print('thresholds:', thresholds)
+    print('ap        : {:.3f}'.format(ap))
+    print('bap       : {:.3f}'.format(bap))
+    print('auc       : {:.3f}'.format(auc_val))
+    threshold_list = ', '.join(list(map('{:.2f}'.format, thresholds.tolist())))
+    print('thresholds:', threshold_list)
     plt.show()
 
 
 if __name__ == '__main__':
     main()
-    # test()
+    test()
