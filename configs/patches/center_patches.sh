@@ -30,9 +30,7 @@ patches=(
 	# p/metrics/write_few_predictions.yaml
 
 	p/checkpointing/save_checkpoints.yaml
-	# p/checkpointing/load_checkpoint.yaml
-	# p/checkpointing/load_checkpoint_scaleup.yaml
-	# p/checkpointing/load_checkpoint_early.yaml
+	p/checkpointing/load_checkpoint_center.yaml
 
 	# p/searcher/adaptive_asha.yaml
 	# p/searcher/adaptive_asha_few.yaml

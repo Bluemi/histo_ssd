@@ -1,0 +1,5 @@
+searcher:
+  source_trial_id: 110341
+hyperparameters:
+  pretrained: False
+  warmup_batches: 300
