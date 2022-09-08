@@ -198,6 +198,7 @@ def update_confusion_matrix(
     assert ground_truth_boxes.shape[0] == len(predictions)  # batch size should be equal
 
     for sample_ground_truth_boxes, sample_predictions in zip(ground_truth_boxes.cpu(), predictions):
+        sample_predictions = sample_predictions.cpu()
         pred_points = box_centers(sample_predictions[:, 2:])
         pred_labels = sample_predictions[:, 0]
         tp, fp, fn = calc_tp_fp_fn(sample_ground_truth_boxes, pred_labels, pred_points)
