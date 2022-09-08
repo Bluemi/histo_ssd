@@ -320,10 +320,7 @@ class DefaultTrial(PyTorchTrial):
                         print('WARN: stopping map updates')
 
             # confusion matrix
-            conf_matrix_clock = Clock()
             update_confusion_matrix(confusion_matrix, batch['boxes'], batch_output)
-            if self.use_clock:
-                conf_matrix_clock.sap('update conf matrix')
 
             # write prediction images
             if self.enable_full_evaluation and image_counter < image_prediction_max_images:
