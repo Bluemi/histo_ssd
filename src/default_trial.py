@@ -225,10 +225,11 @@ class DefaultTrial(PyTorchTrial):
                 color=DEFAULT_COLORS1*0.7, color_indices=ground_truth_boxes[:, 0],
             )
             # draw predictions
+            prediction_sign = 'cross' if self.use_center_points else 'box'
             shown_output = output[output[:, 1] > image_prediction_threshold]
             draw_boxes(
                 draw_image, shown_output[:, 2:], box_format='ltrb',
-                color=DEFAULT_COLORS1*1.4, color_indices=shown_output[:, 0],
+                color=DEFAULT_COLORS1*1.4, color_indices=shown_output[:, 0], sign=prediction_sign,
             )
 
             fig = plt.figure(figsize=(10, 10))
