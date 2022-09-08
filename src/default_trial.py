@@ -292,11 +292,8 @@ class DefaultTrial(PyTorchTrial):
             losses.append(loss)
 
             predict_clock = Clock()
-            pos_threshold = 0.5
-            # if self.enable_full_evaluation:
-            #     pos_threshold = 0.2
             batch_output = predict(
-                anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=pos_threshold,
+                anchors, cls_preds, bbox_preds, nms_iou_threshold=self.nms_threshold, pos_threshold=0.2,
                 num_pred_limit=NUM_PRED_LIMIT,
             )
 
