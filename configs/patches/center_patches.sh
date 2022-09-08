@@ -26,10 +26,10 @@ patches=(
 
 	p/metrics/loss.yaml
 	# p/metrics/map.yaml
-	# p/metrics/write_predictions.yaml
-	p/metrics/write_few_predictions.yaml
+	p/metrics/write_predictions.yaml
+	# p/metrics/write_few_predictions.yaml
 
-	# p/checkpointing/save_checkpoints.yaml
+	p/checkpointing/save_checkpoints.yaml
 	# p/checkpointing/load_checkpoint.yaml
 	# p/checkpointing/load_checkpoint_scaleup.yaml
 	# p/checkpointing/load_checkpoint_early.yaml

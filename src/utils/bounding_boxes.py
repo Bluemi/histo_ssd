@@ -350,6 +350,7 @@ def multibox_detection(
     """
     Predict bounding boxes using non-maximum suppression.
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#predicting-bounding-boxes-with-non-maximum-suppression
+    and modified.
 
     Returns a tensor of shape (BATCH_SIZE, NUM_ANCHOR_BOXES, 6).
     The 6 comes from (predicted class label, confidence, top, left, bottom, right) where "predicted class label" is -1
