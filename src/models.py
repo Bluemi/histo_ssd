@@ -729,7 +729,7 @@ class SSDModel(nn.Module):
 
 
 def predict(
-        anchors, cls_preds, bbox_preds, confidence_threshold=0.0, nms_iou_threshold=0.5, pos_threshold=0.2,
+        anchors, cls_preds, bbox_preds, nms_iou_threshold=0.5, pos_threshold=0.2,
         num_pred_limit: Optional[int] = None,
 ) -> List[torch.Tensor]:
     """
@@ -741,7 +741,6 @@ def predict(
     :param cls_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1].
     :param bbox_preds: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4] or [BATCH_SIZE, NUM_ANCHORS * 2] for center
                        points.
-    :param confidence_threshold: Filter out predictions with lower confidence than confidence_threshold.
     :param nms_iou_threshold: The threshold nms uses to identify overlapping boxes in non-maximum suppression.
                               The smaller the threshold, the fewer boxes are kept.
     :param pos_threshold: Remove predictions with confidence smaller the pos_threshold.
@@ -752,15 +751,7 @@ def predict(
     """
     # anchors, cls_preds, bbox_preds = model(images.to(device))
     cls_probs = functional.softmax(cls_preds, dim=2).permute(0, 2, 1)
-    output = multibox_detection(
+    return multibox_detection(
         cls_probs, bbox_preds, anchors, nms_iou_threshold=nms_iou_threshold, pos_threshold=pos_threshold,
         num_pred_limit=num_pred_limit,
     )
-
-    # filter out background and low confidences
-    result = []
-    for batch_output in output:
-        idx = [i for i, row in enumerate(batch_output) if row[0] != -1 and row[1] >= confidence_threshold]
-        filtered_batch_output = batch_output[idx]
-        result.append(filtered_batch_output)
-    return result

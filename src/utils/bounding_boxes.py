@@ -404,19 +404,9 @@ def multibox_detection(
         predicted_bb = offset_inverse(filtered_anchors, offset_pred)
         keep = non_maximum_suppression(predicted_bb, conf, nms_iou_threshold)
 
-        # Find all non-`keep` indices and set the class to background
-        all_idx = torch.arange(num_anchors, dtype=torch.long, device=device)
-        combined = torch.cat((keep, all_idx))
-        uniques, counts = combined.unique(return_counts=True)
-        non_keep: torch.Tensor = uniques[counts == 1]
-        all_id_sorted = torch.cat((keep, non_keep))
-        class_id[non_keep] = -1
-        class_id = class_id[all_id_sorted]
-        conf, predicted_bb = conf[all_id_sorted], predicted_bb[all_id_sorted]
-        # Here `pos_threshold` is a threshold for positive (non-background) predictions
-        # below_min_idx = (conf < pos_threshold)
-        # class_id[below_min_idx] = -1
-        # conf[below_min_idx] = 1 - conf[below_min_idx]
+        class_id = class_id[keep]
+        conf = conf[keep]
+        predicted_bb = predicted_bb[keep]
         pred_info = torch.cat((class_id.unsqueeze(1), conf.unsqueeze(1), predicted_bb), dim=1)
         out.append(pred_info)
     return out

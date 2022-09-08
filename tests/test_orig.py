@@ -125,7 +125,7 @@ for batch in val_iter:
     debug(anchors.shape)
     predict_clock = Clock()
     batch_output = predict(
-        anchors, cls_preds, bbox_preds, confidence_threshold=0.2, pos_threshold=0.2, num_pred_limit=700,
+        anchors, cls_preds, bbox_preds, pos_threshold=0.2, num_pred_limit=700,
     )
     predict_clock.sap('predict')
 
