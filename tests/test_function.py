@@ -6,6 +6,7 @@ from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.bounding_boxes import multibox_target, generate_random_boxes, non_maximum_suppression
 from utils.funcs import debug
+from utils.metrics import ConfusionMatrix, update_confusion_matrix
 
 BATCH_SIZE = 3
 NUM_CLASSES = 6
@@ -71,7 +72,29 @@ def test_tmp():
             print(new_outer_box)
 
 
+def test_confusion_matrix():
+    ground_truth_boxes = torch.tensor([
+        [0.0, 0.1, 0.1, 0.2, 0.2],
+        [1.0, 0.22, 0.22, 0.32, 0.32],
+        [2.0, 0.4, 0.4, 0.5, 0.5],  # false negative, same position, but different label
+        [1.0, 0.9, 0.9, 1.0, 1.0],  # false negative, not matched by any
+    ])
+
+    predictions = torch.tensor([
+        # label, conf, left, top, right, bottom
+        [0.0, 1.0, 0.1, 0.1, 0.2, 0.2],  # true positive
+        [1.0, 1.0, 0.2, 0.2, 0.3, 0.3],  # true positive
+        [1.0, 1.0, 0.3, 0.3, 0.4, 0.4],  # false positive
+        [1.0, 1.0, 0.4, 0.4, 0.5, 0.5],  # false positive, same position, but different label
+        [0.0, 1.0, 0.1, 0.1, 0.2, 0.21],  # false positive, because gt box already covered by first pred
+    ])
+    confusion_matrix = ConfusionMatrix()
+    update_confusion_matrix(confusion_matrix, ground_truth_boxes.unsqueeze(0), predictions.unsqueeze(0))
+    print(confusion_matrix)
+
+
 if __name__ == '__main__':
     # main()
     # test_nms()
-    test_tmp()
+    # test_tmp()
+    test_confusion_matrix()

@@ -1,9 +1,11 @@
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Union
 
 import torch
 from torch import nn
 from torchmetrics.detection import MeanAveragePrecision
 
+from utils.bounding_boxes import box_centers
+from utils.funcs import debug
 
 EPSILON = 1e-7
 
@@ -123,16 +125,11 @@ def box_indices_inside(inner_boxes: torch.Tensor, outer_box: torch.Tensor) -> to
     :param inner_boxes: A tensor with shape [N, 4], each element is (l, t, r, b)
     :param outer_box: A tensor with shape [4,] with (l, t, r, b)
     """
-    centers = torch.stack(
-        (
-            (inner_boxes[:, 0] + inner_boxes[:, 2]) * 0.5,
-            (inner_boxes[:, 1] + inner_boxes[:, 3]) * 0.5,
-        ),
-        dim=1
-    )
     assert outer_box[0] < outer_box[2]
     assert outer_box[1] < outer_box[3]
     assert inner_boxes.shape[1] == 4
+
+    centers = box_centers(inner_boxes)
 
     # check center - outer left
     # noinspection PyTypeChecker
@@ -141,6 +138,133 @@ def box_indices_inside(inner_boxes: torch.Tensor, outer_box: torch.Tensor) -> to
     y_indices = torch.logical_and(centers[:, 1] >= outer_box[1], centers[:, 1] < outer_box[3])
 
     return torch.logical_and(x_indices, y_indices)
+
+
+def points_inside_boxes_indices(points: torch.Tensor, boxes: torch.Tensor) -> torch.Tensor:
+    """
+    Returns a tensor with shape (NUM_POINTS, NUM_BOXES). The entry (i, j) is True if the i-th point is inside the
+    j-th box, otherwise False.
+    :param points: Tensor with shape (NUM_POINTS, 2) with each entry (x, y).
+    :param boxes: Tensor with shape (NUM_BOXES, 4) with each entry (l, t, r, b).
+    """
+    x_points: torch.Tensor = points[:, None, 0]
+    x_indices = torch.logical_and(x_points >= boxes[None, :, 0], x_points <= boxes[None, :, 2])
+    y_points: torch.Tensor = points[:, None, 1]
+    y_indices = torch.logical_and(y_points >= boxes[None, :, 1], y_points <= boxes[None, :, 3])
+    return torch.logical_and(x_indices, y_indices)
+
+
+class ConfusionMatrix:
+    def __init__(self):
+        self.true_positives: int = 0
+        self.false_negatives: int = 0
+        self.false_positives: int = 0
+        # true negatives are excluded as they don't make sense in object detection context
+
+    def __str__(self):
+        return 'ConfMat(tp={} fp={} fn={})'.format(self.true_positives, self.false_positives, self.false_negatives)
+
+
+def update_confusion_matrix(
+        confusion_matrix: ConfusionMatrix, ground_truth_boxes: torch.Tensor,
+        predictions: Union[torch.Tensor, List[torch.Tensor]]
+):
+    """
+    Updates the given confusion matrix
+    :param confusion_matrix: The confusion matrix to update
+    :param ground_truth_boxes: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_BOXES, 5] each entry with data
+                               (class_label, left, top, right, bottom). Entries with class_label == -1.0 will be sorted
+                               out.
+    :param predictions: Batch of predictions with shape [BATCH_SIZE, NUM_PREDICTIONS, 6] each entry with data
+                       (class_label, confidence, left, top, right, bottom). The coordinates are only used to create
+                       the center points
+    :return:
+    """
+    assert ground_truth_boxes.shape[0] == len(predictions)  # batch size should be equal
+
+    for sample_ground_truth_boxes, sample_predictions in zip(ground_truth_boxes.cpu(), predictions):
+        pred_points = box_centers(sample_predictions[:, 2:])
+        pred_labels = sample_predictions[:, 0]
+        tp, fp, fn = calc_tp_fp_fn(sample_ground_truth_boxes, pred_labels, pred_points)
+        confusion_matrix.true_positives += tp
+        confusion_matrix.false_positives += fp
+        confusion_matrix.false_negatives += fn
+
+
+def calc_tp_fp_fn(ground_truth_boxes: torch.Tensor, pred_labels: torch.Tensor, pred_points) -> Tuple[int, int, int]:
+    """
+    Calculates the number of true positives, false positives and false negatives in the given ground truth boxes and
+    predictions.
+    Conditions for categories:
+        true positive:
+          - the prediction is in a gt box
+          - no other point is closer to the gt box
+          - the gt box has the same label
+        false positive:
+          - the prediction is not in a valid gt box
+          - the closest containing gt box has a different labelx
+          - another point is closer and contained in the gt box
+        false negative:
+          - gt box contains no prediction
+          - all predictions have another gt box that is closer
+    :param ground_truth_boxes: A tensor with shape [NUM_GT_BOXES, 5] with each entry
+                               (class_label, left, top, right, bottom)
+    :param pred_labels: A tensor with shape [NUM_PREDS] with class labels
+    :param pred_points: A tensor with shape [NUM_PREDS, 2] containing the (x, y) coordinates of the predictions
+    :return: A tuple containing the number of true positives, false positives and false negatives in the predictions
+    """
+    num_preds = pred_labels.shape[0]
+    assert pred_points.shape[0] == num_preds
+
+    # calculate gt center points for distance calculation
+    gt_centers = box_centers(ground_truth_boxes[:, 1:])
+
+    # calc inverse square distances between all boxes and all center points
+    # distances should be a tensor with shape [NUM_PREDS, NUM_GT_BOXES]
+    # calc: x_diff = (p1.x-p2.x)^2 and y_diff = (p1.y-p2.y)^2
+    coordinate_diffs = torch.square(pred_points[:, None] - gt_centers[None, :])
+
+    # calc: 1 / (x_diff + y_diff + 1)
+    # add 1.0 for numeric stability. Exact value not important, as only the order counts
+    inverse_distances = 1.0 / (coordinate_diffs[:, :, 0] + coordinate_diffs[:, :, 1] + 1.0)
+
+    # set all distances, that are outside the box to -1
+    outside_indices = torch.logical_not(points_inside_boxes_indices(pred_points, ground_truth_boxes[:, 1:]))
+    inverse_distances[outside_indices] = -1.0
+
+    max_inverse_distances, associated_gt_indices = torch.max(inverse_distances, dim=1)
+    assert max_inverse_distances.shape[0] == num_preds
+    associated_pred_mask = max_inverse_distances != -1  # true for preds that are in some gt box
+
+    # count and remove preds with wrong label
+    # get label for every pred of the associated gt box (this still contains labels for predictions that have no gt box)
+    pred_true_labels = ground_truth_boxes[associated_gt_indices, 0]
+
+    # true for every label, that is in a gt box with same label
+    true_preds_mask = torch.logical_and(pred_true_labels == pred_labels, associated_pred_mask)
+    false_preds_mask = torch.logical_not(true_preds_mask)
+
+    associated_gt_indices[false_preds_mask] = -1.0  # set all gt indices to -1 that have wrong label
+
+    # calc num_true_preds for every gt box
+    unique_gt_indices, unique_pred_counts = torch.unique(associated_gt_indices, return_counts=True, sorted=True)
+
+    fp_by_no_gt = 0  # we first assume 0. If unique_gt_indices[0] == -1, we will change this.
+    if unique_gt_indices[0] == -1:
+        fp_by_no_gt = unique_pred_counts[0]  # number of predictions, that are associated with wrong or no gt box
+        unique_pred_counts = unique_pred_counts[1:]  # remove fps with no gt
+        unique_gt_indices = unique_gt_indices[1:]
+    tp = len(unique_gt_indices)  # the number of gt boxes that are right predicted by at least one prediction
+
+    fp_by_multi_det = torch.sum(unique_pred_counts - 1)  # number of preds already detected (-1 because one is right)
+    fp = (fp_by_no_gt + fp_by_multi_det).item()
+
+    # count number of gt boxes without prediction
+    fn = len(ground_truth_boxes) - tp
+    debug(tp)
+    debug(fp)
+    debug(fn)
+    return tp, fp, fn
 
 
 def calc_loss(

@@ -38,6 +38,21 @@ def yxhw_to_tlbr(boxes: torch.Tensor) -> torch.Tensor:
     return torch.stack((t, l, b, r), dim=1)
 
 
+def box_centers(boxes: torch.Tensor) -> torch.Tensor:
+    """
+    Calculates the center points of the given boxes.
+    :param boxes: A tensor with shape [NUM_BOXES, 4], containing (l, t, r, b) coordinates of the boxes.
+    :return: A tensor with shape [NUM_BOXES, 2], containing (cx, xy).
+    """
+    return torch.stack(
+        (
+            (boxes[:, 0] + boxes[:, 2]) * 0.5,
+            (boxes[:, 1] + boxes[:, 3]) * 0.5,
+        ),
+        dim=1
+    )
+
+
 def generate_random_boxes(
         num_boxes: int, min_size: float = 0.1, max_size: float = 1.0, device: str or None = None
 ) -> torch.Tensor:

@@ -2,6 +2,7 @@ import inspect
 import sys
 from typing import Union, List, NewType, Tuple, Optional
 
+import numpy as np
 import torch
 from matplotlib import pyplot as plt
 
@@ -160,4 +161,7 @@ def debug(arg):
     code = inspect.getsource(fr).split('\n')
     line = code[fr.f_lineno - fr.f_code.co_firstlineno]
     varname = line.partition('debug(')[2].rpartition(')')[0]
-    print('{}: {}'.format(varname, arg))
+    f_string = '{}: {}'
+    if isinstance(arg, torch.Tensor) or isinstance(arg, np.ndarray):
+        f_string = '{}:\n{}'
+    print(f_string.format(varname, arg))
