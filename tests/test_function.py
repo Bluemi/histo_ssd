@@ -90,7 +90,9 @@ def test_confusion_matrix():
     ])
     confusion_matrix = ConfusionMatrix()
     update_confusion_matrix(confusion_matrix, ground_truth_boxes.unsqueeze(0), predictions.unsqueeze(0))
-    print(confusion_matrix)
+    debug(confusion_matrix.precision())
+    debug(confusion_matrix.recall())
+    debug(confusion_matrix.f1_score())
 
 
 if __name__ == '__main__':

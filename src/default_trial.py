@@ -334,13 +334,19 @@ class DefaultTrial(PyTorchTrial):
             go_through_dataset_clock.sap('predict dataset')
 
         # TODO: result['map_per_class'] should be returned separate for each class
-        map_clock = Clock()
         result = {}
+
+        map_clock = Clock()
         if calculate_map:
             result = mean_ap.compute()
-
         if self.use_clock:
             map_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
+
+        if mean_average_precision_counter != 0:
+            result['map time/sample'] = map_clock.get_duration() / mean_average_precision_counter
+        else:
+            result['map time/sample'] = -1
+
         if calculate_map and USE_MAP_UNDIV:
             map_clock.start()
             result_undiv = mean_ap_undiv.compute()
