@@ -17,7 +17,7 @@ DEFAULT_COLORS1 = torch.tensor([
 
 DARK_COLORS = torch.tensor([
     [0, 140, 0],      # green
-    [170, 0, 0],      # red
+    [140, 0, 0],      # red
     [0, 0, 150],      # blue
     [180, 180, 0],    # yellow
     [0, 170, 170],    # cyan
