@@ -1,5 +1,5 @@
 name: SSD::Standard
-description: "{network_arch} on {dataset}{irc} - {action} - {augmentation}"
+description: "{network_arch} on {dataset}{irc} - {action}"
 hyperparameters:
   global_batch_size: 32
   num_workers: 8

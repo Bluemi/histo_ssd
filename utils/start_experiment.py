@@ -46,7 +46,6 @@ def main():
 
     variables = {
         'description': {
-            'augmentation': 'no augmentation',
             'action': 'test',
             'irc': '',
         }
