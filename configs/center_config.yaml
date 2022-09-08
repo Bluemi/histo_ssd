@@ -1,5 +1,5 @@
 name: SSD::CenterPoints
-description: "{network_arch}-Model on {dataset}-Dataset{irc} - {action} - {augmentation}"
+description: "{network_arch} on {dataset}{irc} - {action} - {augmentation}"
 hyperparameters:
   use_center_points: true
   global_batch_size: 32
