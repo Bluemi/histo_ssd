@@ -7,12 +7,30 @@ from matplotlib import pyplot as plt
 
 Color = NewType('Color', Tuple[int, int, int])
 DEFAULT_COLORS1 = torch.tensor([
-    [0, 255, 255],
-    [255, 0, 0],
-    [0, 255, 0],
-    [0, 0, 255],
-    [255, 0, 255],
-    [255, 255, 0],
+    [0, 255, 0],      # green
+    [255, 0, 0],      # red
+    [0, 0, 255],      # blue
+    [255, 255, 0],    # yellow
+    [0, 255, 255],    # cyan
+    [220, 220, 220],  # gray
+])
+
+DARK_COLORS = torch.tensor([
+    [0, 140, 0],      # green
+    [170, 0, 0],      # red
+    [0, 0, 150],      # blue
+    [180, 180, 0],    # yellow
+    [0, 170, 170],    # cyan
+    [120, 120, 120],  # gray
+])
+
+BRIGHT_COLORS = torch.tensor([
+    [30, 255, 30],    # green
+    [255, 30, 30],    # red
+    [0, 80, 255],    # blue
+    [255, 255, 50],   # yellow
+    [70, 255, 255],   # cyan
+    [220, 220, 220],  # gray
 ])
 
 

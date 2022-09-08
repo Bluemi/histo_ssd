@@ -15,7 +15,7 @@ from datasets.banana_dataset import BananasDataset
 from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.clock import Clock
-from utils.funcs import draw_boxes, DEFAULT_COLORS1
+from utils.funcs import draw_boxes, DARK_COLORS, BRIGHT_COLORS
 from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
 from utils.augmentations import RandomRotate, RandomFlip
 
@@ -222,14 +222,14 @@ class DefaultTrial(PyTorchTrial):
             # draw ground truth
             draw_boxes(
                 draw_image, ground_truth_boxes[:, 1:],  box_format='ltrb',
-                color=DEFAULT_COLORS1*0.7, color_indices=ground_truth_boxes[:, 0],
+                color=DARK_COLORS, color_indices=ground_truth_boxes[:, 0],
             )
             # draw predictions
             prediction_sign = 'cross' if self.use_center_points else 'box'
             shown_output = output[output[:, 1] > image_prediction_threshold]
             draw_boxes(
                 draw_image, shown_output[:, 2:], box_format='ltrb',
-                color=DEFAULT_COLORS1*1.4, color_indices=shown_output[:, 0], sign=prediction_sign,
+                color=BRIGHT_COLORS, color_indices=shown_output[:, 0], sign=prediction_sign,
             )
 
             fig = plt.figure(figsize=(10, 10))

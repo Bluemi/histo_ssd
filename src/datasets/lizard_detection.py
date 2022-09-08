@@ -314,7 +314,7 @@ class LizardDetectionDataset(Dataset):
         :return: label data of the sample
         """
         label_path = data_dir / LABELS_DIR / '{}.mat'.format(sample_name)
-        label_data = sio.loadmat(str(label_path))
+        label_data = sio.loadmat(str(label_path), variable_names=['inst_map', 'id', 'bbox', 'class'])
 
         inst_map = label_data['inst_map']
         # noinspection PyTypeChecker
@@ -383,8 +383,7 @@ class LizardDetectionDataset(Dataset):
         shape [N, 5] so each sample has elements (class_label, left, top, right, bottom).
         Also pads with (-1, 0, 0, 0, 0) samples to create shape of [max_boxes_per_snapshot, 5].
 
-        :param bounding_boxes: Bounding boxes of shape [N, 4]
-        :param class_labels: Class labels of shape [N,]
+        :param label_data: Label Data with shape [N, 5], each entry (classlabel, top, left, right, bottom)
         :return: Padded and joint bounding boxes and labels with shape [max_boxes_per_snapshot, 5]
         """
         assert label_data[:, 0].shape[0] > 0

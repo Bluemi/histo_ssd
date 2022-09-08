@@ -6,12 +6,13 @@ from pstats import SortKey
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+from tqdm import trange
 
 from datasets.augmentation_wrapper import AugmentationWrapper
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.augmentations import RandomRotate, RandomFlip
 from utils.bounding_boxes import box_area
-from utils.funcs import draw_boxes, DEFAULT_COLORS1
+from utils.funcs import draw_boxes, DEFAULT_COLORS1, DARK_COLORS, BRIGHT_COLORS
 from utils.metrics import box_indices_inside
 
 SHOW_IMAGE = False
@@ -27,6 +28,7 @@ def main():
         use_cache=True,
         show_progress=True,
         ignore_classes=ignore_classes,
+        ignore_image=False,
     )
 
     # train, validation = whole_dataset.split(0.8)
@@ -44,25 +46,27 @@ def main():
 
 
 def test_box_plotting(dataset):
-    for i in range(len(dataset)):
+    for i in trange(len(dataset)):
         sample = dataset[i]
         image = sample['image']
         boxes = filter_boxes(sample['boxes'])
-        image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
-        # boxes_third = len(boxes) // 3
-        boxes1 = boxes
-        draw_boxes(
-            image, torch.tensor(boxes1[:, 1:]), box_format='ltrb',
-            color=DEFAULT_COLORS1*0.7, color_indices=torch.tensor(boxes1[:, 0]), sign='box', color_mode='set',
-        )
-        boxes2 = np.copy(boxes) # np.copy(boxes[:boxes_third*2])
-        boxes2[:, 1:] += (np.random.rand(boxes2.shape[0], 4)-0.5)*0.02
-        draw_boxes(
-            image, torch.tensor(boxes2[:, 1:]), box_format='ltrb',
-            color=DEFAULT_COLORS1*1.4, color_indices=torch.tensor(boxes2[:, 0]), sign='box', color_mode='set'
-        )
-        plt.imshow(image)
-        plt.show()
+        unique_values = np.unique(boxes[:, 0])
+        if len(unique_values) == 6:
+            image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
+            # boxes_third = len(boxes) // 3
+            boxes1 = boxes
+            draw_boxes(
+                image, torch.tensor(boxes1[:, 1:]), box_format='ltrb',
+                color=DARK_COLORS, color_indices=torch.tensor(boxes1[:, 0]), sign='box', color_mode='set',
+            )
+            boxes2 = np.copy(boxes) # np.copy(boxes[:boxes_third*2])
+            boxes2[:, 1:] += (np.random.rand(boxes2.shape[0], 4)-0.5)*0.02
+            draw_boxes(
+                image, torch.tensor(boxes2[:, 1:]), box_format='ltrb',
+                color=BRIGHT_COLORS, color_indices=torch.tensor(boxes2[:, 0]), sign='box', color_mode='set'
+            )
+            plt.imshow(image)
+            plt.show()
 
 
 def wrap_dataset(dataset):
