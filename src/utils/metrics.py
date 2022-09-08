@@ -5,7 +5,7 @@ from torch import nn
 from torchmetrics.detection import MeanAveragePrecision
 
 from utils.bounding_boxes import box_centers
-from utils.funcs import debug
+
 
 EPSILON = 1e-7
 
@@ -157,9 +157,24 @@ def points_inside_boxes_indices(points: torch.Tensor, boxes: torch.Tensor) -> to
 class ConfusionMatrix:
     def __init__(self):
         self.true_positives: int = 0
-        self.false_negatives: int = 0
         self.false_positives: int = 0
+        self.false_negatives: int = 0
         # true negatives are excluded as they don't make sense in object detection context
+
+    def precision(self):
+        if self.true_positives + self.false_positives == 0:
+            return -1.0
+        return self.true_positives / (self.true_positives + self.false_positives)
+
+    def recall(self):
+        if self.true_positives + self.false_negatives == 0:
+            return -1.0
+        return self.true_positives / (self.true_positives + self.false_negatives)
+
+    def f1_score(self):
+        p = self.precision()
+        r = self.recall()
+        return 2.0 * (p * r) / (p + r)
 
     def __str__(self):
         return 'ConfMat(tp={} fp={} fn={})'.format(self.true_positives, self.false_positives, self.false_negatives)
@@ -261,9 +276,6 @@ def calc_tp_fp_fn(ground_truth_boxes: torch.Tensor, pred_labels: torch.Tensor, p
 
     # count number of gt boxes without prediction
     fn = len(ground_truth_boxes) - tp
-    debug(tp)
-    debug(fp)
-    debug(fn)
     return tp, fp, fn
 
 
