@@ -266,7 +266,7 @@ def calc_tp_fp_fn(ground_truth_boxes: torch.Tensor, pred_labels: torch.Tensor, p
     unique_gt_indices, unique_pred_counts = torch.unique(associated_gt_indices, return_counts=True, sorted=True)
 
     fp_by_no_gt = 0  # we first assume 0. If unique_gt_indices[0] == -1, we will change this.
-    if unique_gt_indices[0] == -1:
+    if unique_gt_indices.shape[0] and unique_gt_indices[0] == -1:
         fp_by_no_gt = unique_pred_counts[0]  # number of predictions, that are associated with wrong or no gt box
         unique_pred_counts = unique_pred_counts[1:]  # remove fps with no gt
         unique_gt_indices = unique_gt_indices[1:]
