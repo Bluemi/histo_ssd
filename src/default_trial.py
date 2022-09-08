@@ -16,7 +16,7 @@ from models import SSDModel, predict
 from utils.bounding_boxes import multibox_target
 from utils.clock import Clock
 from utils.funcs import draw_boxes, DARK_COLORS, BRIGHT_COLORS
-from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss
+from utils.metrics import update_mean_average_precision, calc_cls_bbox_loss, update_confusion_matrix, ConfusionMatrix
 from utils.augmentations import RandomRotate, RandomFlip
 
 WRITE_PREDICTIONS_BATCH = 2900
@@ -266,6 +266,8 @@ class DefaultTrial(PyTorchTrial):
             # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
 
+        confusion_matrix = ConfusionMatrix()
+
         calculate_map = self.enable_full_evaluation or self.always_compute_map
 
         image_counter = 0
@@ -306,6 +308,7 @@ class DefaultTrial(PyTorchTrial):
 
             last_predict_duration = predict_clock.stop()
 
+            # mean average precision
             if calculate_map:
                 if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
                     update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
@@ -315,6 +318,12 @@ class DefaultTrial(PyTorchTrial):
                         mean_average_precision_counter += len(out)
                     if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
                         print('WARN: stopping map updates')
+
+            # confusion matrix
+            conf_matrix_clock = Clock()
+            update_confusion_matrix(confusion_matrix, batch['boxes'], batch_output)
+            if self.use_clock:
+                conf_matrix_clock.sap('update conf matrix')
 
             # write prediction images
             if self.enable_full_evaluation and image_counter < image_prediction_max_images:
@@ -347,6 +356,9 @@ class DefaultTrial(PyTorchTrial):
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
         result['bbox_loss'] = torch.mean(bbox_loss)
+        result['precision'] = confusion_matrix.precision()
+        result['recall'] = confusion_matrix.recall()
+        result['f1_score'] = confusion_matrix.f1_score()
 
         if self.use_clock:
             eval_clock.sap('eval dataset')
