@@ -271,7 +271,7 @@ class DefaultTrial(PyTorchTrial):
         calculate_map = self.enable_full_evaluation or self.always_compute_map
 
         image_counter = 0
-        mean_average_precision_counter = 0
+        prediction_counter = 0
         losses = []
         cls_loss = None
         bbox_loss = None
@@ -310,14 +310,15 @@ class DefaultTrial(PyTorchTrial):
 
             # mean average precision
             if calculate_map:
-                if self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES:
+                if self.enable_full_evaluation or prediction_counter < MAX_MAP_UPDATES:
                     update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
                     if USE_MAP_UNDIV:
                         update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
-                    for out in batch_output:
-                        mean_average_precision_counter += len(out)
-                    if not (self.enable_full_evaluation or mean_average_precision_counter < MAX_MAP_UPDATES):
+                    if not (self.enable_full_evaluation or prediction_counter < MAX_MAP_UPDATES):
                         print('WARN: stopping map updates')
+
+            for out in batch_output:
+                prediction_counter += len(out)
 
             # confusion matrix
             update_confusion_matrix(confusion_matrix, batch['boxes'], batch_output)
@@ -340,10 +341,10 @@ class DefaultTrial(PyTorchTrial):
         if calculate_map:
             result = mean_ap.compute()
         if self.use_clock:
-            map_clock.sap('map.compute() for {} samples'.format(mean_average_precision_counter))
+            map_clock.sap('map.compute() for {} samples'.format(prediction_counter))
 
-        if mean_average_precision_counter != 0:
-            result['map time/sample'] = map_clock.get_duration() / mean_average_precision_counter
+        if prediction_counter != 0:
+            result['map time/sample'] = map_clock.get_duration() / prediction_counter
         else:
             result['map time/sample'] = -1
 
@@ -351,7 +352,7 @@ class DefaultTrial(PyTorchTrial):
             map_clock.start()
             result_undiv = mean_ap_undiv.compute()
             if self.use_clock:
-                map_clock.sap('map_undiv.compute() for {} samples'.format(mean_average_precision_counter))
+                map_clock.sap('map_undiv.compute() for {} samples'.format(prediction_counter))
 
             for key, value in result_undiv.items():
                 result['{}_undiv'.format(key)] = value

@@ -174,6 +174,8 @@ class ConfusionMatrix:
     def f1_score(self):
         p = self.precision()
         r = self.recall()
+        if p + r == 0:
+            return -1.0
         return 2.0 * (p * r) / (p + r)
 
     def __str__(self):
