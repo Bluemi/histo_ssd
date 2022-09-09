@@ -59,7 +59,8 @@ def box_centers(boxes: torch.Tensor) -> torch.Tensor:
 
 
 def generate_random_boxes(
-        num_boxes: int, min_size: float = 0.1, max_size: float = 1.0, device: str or None = None
+        num_boxes: int, min_size: float = 0.1, max_size: float = 1.0, device: str or None = None,
+        seed: Optional[int] = None
 ) -> torch.Tensor:
     """
     Creates a batch of random bounding boxes with the shape (num_boxes, 4) in tlbr-format.
@@ -68,7 +69,10 @@ def generate_random_boxes(
     :param min_size: The minimal size for a bounding box
     :param max_size: The maximal size for a bounding box
     :param device: The device the bounding boxes are created on
+    :param seed: Seed to use for randomness
     """
+    if seed is not None:
+        torch.random.manual_seed(seed)
     center = torch.rand((num_boxes, 2), device=device)
     height_width = torch.rand((num_boxes, 2), device=device) * (max_size - min_size) + min_size
     boxes = torch.stack((center, height_width), dim=1).reshape((num_boxes, 4))

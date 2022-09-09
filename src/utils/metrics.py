@@ -4,15 +4,14 @@ import torch
 from torch import nn
 from torchmetrics.detection import MeanAveragePrecision
 
-from utils.bounding_boxes import box_centers
-
+from utils.bounding_boxes import box_centers, intersection_over_union, tlbr_to_yxhw, yxhw_to_tlbr
 
 EPSILON = 1e-7
 
 
 def update_mean_average_precision(
         mean_average_precision: MeanAveragePrecision, ground_truth_boxes: torch.Tensor, predictions: List[torch.Tensor],
-        divide_limit: int = 0
+        divide_limit: int = 0, overwrite_wh: bool = False
 ):
     """
     Updates the mean average precision metric.
@@ -24,25 +23,31 @@ def update_mean_average_precision(
     :param predictions: Batch of predictions with shape [BATCH_SIZE, NUM_PREDICTIONS, 6] each entry with data
                        (class_label, confidence, left, top, right, bottom).
     :param divide_limit: If set, divide predictions into smaller squares to fix det threshold
+    :param overwrite_wh: If set, the width and height of each prediction box is overwritten by the best matching ground
+                         truth box (independent of label). If no ground truth box matches, the width and height are
+                         unchanged.
     """
     assert ground_truth_boxes.shape[0] == len(predictions)  # batch size should be equal
 
     target = []
     preds = []
-    # debug(predictions.shape)
     for sample_ground_truth_boxes, sample_predictions in zip(ground_truth_boxes.cpu(), predictions):
         sample_predictions = sample_predictions.cpu()
         # ground truth
         valid_box_indices = sample_ground_truth_boxes[:, 0] != -1.0  # filter out invalid boxes
+        sample_ground_truth_boxes = sample_ground_truth_boxes[valid_box_indices]
         target_example = {
-            'boxes': sample_ground_truth_boxes[valid_box_indices, 1:],
-            'labels': sample_ground_truth_boxes[valid_box_indices, 0],
+            'boxes': sample_ground_truth_boxes[:, 1:],
+            'labels': sample_ground_truth_boxes[:, 0],
         }
         target.append(target_example)
 
         # predictions
+        sample_pred_boxes = sample_predictions[:, 2:]
+        if overwrite_wh:
+            sample_pred_boxes = _overwrite_width_height(sample_pred_boxes, sample_ground_truth_boxes)
         prediction_example = {
-            'boxes': sample_predictions[:, 2:],
+            'boxes': sample_pred_boxes,
             'scores': sample_predictions[:, 1],
             'labels': sample_predictions[:, 0],
         }
@@ -61,6 +66,35 @@ def update_mean_average_precision(
         divided_pred = preds
 
     mean_average_precision.update(divided_pred, divided_target)
+
+
+def _overwrite_width_height(pred_boxes, gt_boxes) -> torch.Tensor:
+    """
+    Returns a tensor with shape (NUM_PREDS, 4), that are the predictions with different width height.
+
+    :param pred_boxes: Tensor with shape (NUM_PREDS, 4)
+    :param gt_boxes: Tensor with shape (NUM_GTS, 4)
+    """
+    if pred_boxes.shape[0] == 0:
+        return pred_boxes
+
+    assert pred_boxes.shape[1] == 4
+    assert gt_boxes.shape[1] == 4
+
+    gts_transformed = tlbr_to_yxhw(gt_boxes)
+    preds_transformed = tlbr_to_yxhw(pred_boxes)
+
+    ious = intersection_over_union(pred_boxes, gt_boxes)
+
+    # get max iou and index to gt box for every pred
+    max_ious, best_gt_indices = torch.max(ious, dim=1)
+
+    valid_pred_mask = max_ious > 0.0
+    valid_gt_indices = best_gt_indices[valid_pred_mask]
+
+    preds_transformed[valid_pred_mask, 2:] = gts_transformed[valid_gt_indices, 2:]
+
+    return yxhw_to_tlbr(preds_transformed)
 
 
 def divide_to_limit(

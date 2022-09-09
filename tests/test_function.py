@@ -1,12 +1,13 @@
 import torch
 import numpy as np
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 
 from models import SSDModel
 from datasets.lizard_detection import LizardDetectionDataset
 from utils.bounding_boxes import multibox_target, generate_random_boxes, non_maximum_suppression
-from utils.funcs import debug
-from utils.metrics import ConfusionMatrix, update_confusion_matrix
+from utils.funcs import debug, draw_boxes
+from utils.metrics import ConfusionMatrix, update_confusion_matrix, _overwrite_width_height
 
 BATCH_SIZE = 3
 NUM_CLASSES = 6
@@ -95,8 +96,44 @@ def test_confusion_matrix():
     debug(confusion_matrix.f1_score())
 
 
+def test_overwrite_wh():
+    # ground_truth_boxes = torch.tensor([
+    #     [0.1, 0.1, 0.2, 0.2],
+    #     [0.2, 0.2, 0.3, 0.3],
+    #     [0.4, 0.4, 0.5, 0.5],
+    #     [0.6, 0.9, 1.0, 1.0],
+    # ])
+
+    # predictions = torch.tensor([
+    #     [0.15, 0.15, 0.2, 0.2],
+    #     [0.6, 0.2, 0.8, 0.3],
+    #     [0.3, 0.3, 0.4, 0.4],
+    #     [0.4, 0.4, 0.5, 0.5],
+    # ])
+
+    ground_truth_boxes = generate_random_boxes(7, min_size=0.04, max_size=0.2, seed=42)
+    predictions = generate_random_boxes(7, min_size=0.04, max_size=0.2, seed=51)
+
+    transformed_preds = _overwrite_width_height(predictions, ground_truth_boxes)
+
+    image = torch.zeros((256, 256*3, 3), dtype=torch.int)
+    image[:, 256, :] = 100
+    image[:, 256*2, :] = 100
+
+    if predictions.shape[0] != 0:
+        draw_boxes(image[:, :256], ground_truth_boxes, color=(256, 0, 0))
+        draw_boxes(image[:, 256:256*2], predictions, color=(0, 256, 0), color_mode='add')
+
+        draw_boxes(image[:, 256*2:256*3], ground_truth_boxes, color=(256, 0, 0))
+        draw_boxes(image[:, 256*2:256*3], transformed_preds, color=(0, 256, 0), color_mode='add')
+
+        plt.imshow(image)
+        plt.show()
+
+
 if __name__ == '__main__':
     # main()
     # test_nms()
     # test_tmp()
-    test_confusion_matrix()
+    # test_confusion_matrix()
+    test_overwrite_wh()

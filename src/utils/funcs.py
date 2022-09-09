@@ -59,8 +59,8 @@ def draw_boxes(
     """
     def _draw_box(img, l, t, r, bot_arg, col):
         lines = [
-            img[t, l:r],  # draw top line
-            img[bot_arg, l:r],  # draw bottom line
+            img[t, l+1:r],  # draw top line
+            img[bot_arg, l:r+1],  # draw bottom line
             img[t:bot_arg, l],  # draw left line
             img[t:bot_arg, r],  # draw right line
         ]
