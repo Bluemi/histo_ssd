@@ -4,5 +4,5 @@ variables:
 hyperparameters:
   iou_match_threshold:
     type: double
-    minval: 0.05
-    maxval: 0.6
+    minval: 0.1
+    maxval: 0.8

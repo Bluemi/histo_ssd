@@ -1,9 +1,9 @@
 base_config="./configs/standard_config.yaml"
 patches=(
 	# p/cluster/pepper.yaml
-	p/cluster/pepper_full.yaml
+	# p/cluster/pepper_full.yaml
 	# p/cluster/pepper_few.yaml
-	# p/cluster/dt.yaml
+	p/cluster/dt.yaml
 
 	p/dataset/lizard.yaml
 	p/dataset/ignore_rare_classes.yaml
@@ -19,11 +19,16 @@ patches=(
 	# p/hparams/sizes_small.yaml
 	# p/hparams/sizes_med.yaml
 	# p/hparams/negative_ratio_narrow.yaml
+	p/hparams/negative_ratio.yaml
 	# p/hparams/image_stride.yaml
 	# p/hparams/smoothl1.yaml
-	p/hparams/nms_threshold.yaml
-	p/hparams/iou_match_threshold.yaml
+	# p/hparams/nms_threshold.yaml
+	# p/hparams/iou_match_threshold.yaml
 	# p/hparams/bbox_loss_scale.yaml
+
+	# DEFAULT VALUES FOR HPARAMS
+	# p/hparams/iou_match_threshold_opt_map.yaml
+	p/hparams/iou_match_threshold_opt_f1.yaml
 
 	p/metrics/loss.yaml
 	# p/metrics/map.yaml
