@@ -62,7 +62,11 @@ case "$1" in
 		fi
 		python3 ./utils/start_experiment.py -v $dry "./configs/base_config.yaml" "$@"
 		;;
-	f|function)
+	f|fetch)
+		shift
+		python3 ./utils/fetch_experiments.py "$@"
+		;;
+	tf|function)
 		PYTHONPATH=./src python3 ./tests/test_function.py
 		;;
 	g|gpu)
