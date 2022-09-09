@@ -58,6 +58,7 @@ class DefaultTrial(PyTorchTrial):
         self.always_compute_map = self.context.get_hparams().get('always_compute_map', False)
         self.iou_match_threshold = self.context.get_hparams().get('iou_match_threshold', 0.5)
         self.use_center_points = self.context.get_hparams().get('use_center_points', False)
+        self.enable_map_plus = self.context.get_hparams().get('enable_map_plus', False)
 
         # the dataset is loaded at the start to make it possible to split it
         self.train_dataset, self.validation_dataset = self._load_dataset()
@@ -258,12 +259,14 @@ class DefaultTrial(PyTorchTrial):
 
         mean_ap = MeanAveragePrecision(
             box_format='xyxy', class_metrics=self.enable_class_metrics,
-            # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
         )
 
         mean_ap_undiv = MeanAveragePrecision(
             box_format='xyxy', class_metrics=self.enable_class_metrics,
-            # max_detection_thresholds=[600, 600, 600],  # sometimes we have 600 predictions for one image
+        )
+
+        mean_ap_plus = MeanAveragePrecision(
+            box_format='xyxy', class_metrics=self.enable_class_metrics,
         )
 
         confusion_matrix = ConfusionMatrix()
@@ -311,6 +314,8 @@ class DefaultTrial(PyTorchTrial):
                     update_mean_average_precision(mean_ap, batch['boxes'], batch_output, divide_limit=100)
                     if USE_MAP_UNDIV:
                         update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
+                    if self.enable_map_plus:
+                        update_mean_average_precision(mean_ap_plus, batch['boxes'], batch_output, overwrite_wh=True)
                     if not (self.enable_full_evaluation or prediction_counter < MAX_MAP_UPDATES):
                         print('WARN: stopping map updates')
 
@@ -334,25 +339,32 @@ class DefaultTrial(PyTorchTrial):
         # TODO: result['map_per_class'] should be returned separate for each class
         result = {}
 
-        map_clock = Clock()
         if calculate_map:
+            map_clock = Clock()
             result = mean_ap.compute()
-        if self.use_clock:
-            map_clock.sap('map.compute() for {} samples'.format(prediction_counter))
+            if self.use_clock:
+                map_clock.sap('map.compute() for {} samples'.format(prediction_counter))
 
-        if prediction_counter != 0:
-            result['map time/sample'] = map_clock.get_duration() / prediction_counter
-        else:
-            result['map time/sample'] = -1
+            if prediction_counter != 0:
+                result['map time/sample'] = map_clock.get_duration() / prediction_counter
 
         if calculate_map and USE_MAP_UNDIV:
-            map_clock.start()
+            map_clock = Clock()
             result_undiv = mean_ap_undiv.compute()
             if self.use_clock:
                 map_clock.sap('map_undiv.compute() for {} samples'.format(prediction_counter))
 
             for key, value in result_undiv.items():
                 result['{}_undiv'.format(key)] = value
+
+        if calculate_map and self.enable_map_plus:
+            map_clock = Clock()
+            map_result_plus = mean_ap_plus.compute()
+            if self.use_clock:
+                map_clock.sap('map_plus.compute() for {} samples'.format(prediction_counter))
+
+            for key, value in map_result_plus.items():
+                result['{}+'.format(key)] = value
 
         result['loss'] = torch.mean(torch.tensor(losses)).item()
         result['cls_loss'] = torch.mean(cls_loss)
