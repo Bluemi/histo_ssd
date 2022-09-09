@@ -16,6 +16,8 @@ def tlbr_to_yxhw(boxes: torch.Tensor) -> torch.Tensor:
     """
     Converts a batch of boxes from tlbr to yxhw format.
 
+    Taken from https://d2l.ai/chapter_computer-vision/bounding-box.html and modified.
+
     :param boxes: The boxes to convert with shape (N, 4)
     """
     y = (boxes[:, 0] + boxes[:, 2]) / 2.0
@@ -29,6 +31,8 @@ def yxhw_to_tlbr(boxes: torch.Tensor) -> torch.Tensor:
     """
     Converts a batch of boxes from yxhw to tlbr format.
 
+    Taken from https://d2l.ai/chapter_computer-vision/bounding-box.html and modified.
+
     :param boxes: The boxes to convert with shape (N, 4)
     """
     t = boxes[:, 0] - boxes[:, 2] / 2.0
@@ -41,6 +45,7 @@ def yxhw_to_tlbr(boxes: torch.Tensor) -> torch.Tensor:
 def box_centers(boxes: torch.Tensor) -> torch.Tensor:
     """
     Calculates the center points of the given boxes.
+
     :param boxes: A tensor with shape [NUM_BOXES, 4], containing (l, t, r, b) coordinates of the boxes.
     :return: A tensor with shape [NUM_BOXES, 2], containing (cx, xy).
     """
@@ -77,6 +82,8 @@ def create_anchor_boxes(
 ) -> torch.Tensor:
     """
     Creates anchor boxes centered on each point in shape. Anchor Boxes are in tlbr-format.
+    
+    Own implementation of create_anchor_boxes, but not used, because of worse model performance
 
     :param shape: One anchor box is created for every pixel in the given shape.
     :param scales: The scales for the anchor boxes
@@ -171,6 +178,7 @@ def create_anchor_boxes(
 def box_area(boxes: torch.Tensor) -> torch.Tensor:
     """
     Calculates the area of all given boxes.
+
     :param boxes: A tensor with shape (NUM_BOXES, 4), each sample containing (l, t, r, b).
     :return: The area of each box with shape (NUM_BOXES,)
     """
@@ -180,6 +188,7 @@ def box_area(boxes: torch.Tensor) -> torch.Tensor:
 def intersection_over_union(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     """
     Calculates the intersection over union for a batch of bounding boxes in tlbr-format.
+
     Taken from https://d2l.ai/chapter_computer-vision/anchor.html#intersection-over-union-iou
 
     :param boxes1: First set of bounding boxes of shape (N, 4)
@@ -286,13 +295,13 @@ def multibox_target(
        examples to 1.0
     3. The class labels of the anchor boxes with shape [BATCH_SIZE, NUM_ANCHOR_BOXES]
 
+    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets and modified.
+
     :param anchors: List of anchor boxes with shape [1, NUM_ANCHOR_BOXES, 4] in tlbr-format.
     :param labels: Batch of ground truth boxes with shape [BATCH_SIZE, NUM_GT_BOXES, 5].
                    The 5 comes from (classlabel, t, l, b, r). If the classlabel is -1, the sample will be ignored.
     :param center_points: Whether the labels should be created for center points only or not
     :param iou_match_threshold: Match ground truth and anchor box, if iou > iou_match_threshold
-
-    Taken from https://d2l.ai/chapter_computer-vision/anchor.html#labeling-classes-and-offsets
     """
     batch_size, anchors = labels.shape[0], anchors.squeeze(0)
     batch_offset, batch_mask, batch_class_labels = [], [], []

@@ -318,7 +318,7 @@ def calc_cls_bbox_loss(
     """
     Calculates a loss value from class predictions and bounding box regression.
 
-    Taken from: https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions
+    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions and modified.
 
     :param cls_preds: Class predictions of shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
     :param cls_labels: Class labels of shape [BATCH_SIZE, NUM_ANCHORS]
@@ -383,9 +383,24 @@ def calc_cls_bbox_loss(
 
 
 def cls_eval(cls_preds: torch.Tensor, cls_labels: torch.Tensor):
+    """
+    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions
+
+    :param cls_preds: The class predictions of the model
+    :param cls_labels: The ground truth class labels
+    :return: A float the describes the quality of the predictions
+    """
     # Because the class prediction results are on the final dimension, `argmax` needs to specify this dimension
     return float((cls_preds.argmax(dim=-1).type(cls_labels.dtype) == cls_labels).sum())
 
 
 def bbox_eval(bbox_preds, bbox_labels, bbox_masks):
+    """
+    Taken from https://d2l.ai/chapter_computer-vision/ssd.html#defining-loss-and-evaluation-functions
+
+    :param bbox_preds: Bounding box offset predictions of the model
+    :param bbox_labels: Ground truth offsets
+    :param bbox_masks: Mask to exclude background boxes
+    :return: A float the describes the quality of the predictions
+    """
     return float((torch.abs((bbox_labels - bbox_preds) * bbox_masks)).sum())

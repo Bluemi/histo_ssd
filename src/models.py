@@ -209,6 +209,7 @@ def search_last_conv(layers: Reversible[nn.Module]) -> nn.Conv2d:
 class Backbone(nn.Module):
     def __init__(self, blocks: List, debug: bool = False):
         """
+        Creates new backbone with the given blocks.
 
         :param blocks: The layers of the network
         :param debug: If True, prints shape information for each layer output
@@ -493,7 +494,7 @@ class Backbone(nn.Module):
     @staticmethod
     def tiny_base_net(debug=False):
         """
-        Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block
+        Taken from https://d2l.ai/chapter_computer-vision/ssd.html#base-network-block and modified
         """
         layers = []
         num_filters = [3, 16, 32, 64]
@@ -699,6 +700,8 @@ class SSDModel(nn.Module):
         1. anchor boxes: A tensor with shape [1, NUM_ANCHORS, 4] in ltrb-format
         2. class predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS, NUM_CLASSES + 1]
         3. bbox predictions: A tensor with shape [BATCH_SIZE, NUM_ANCHORS * 4]
+
+        Taken from https://d2l.ai/chapter_computer-vision/ssd.html#the-complete-model and modified.
 
         :param x: A tensor with shape [BATCH_SIZE, NUM_CHANNELS, HEIGHT, WIDTH]
         """

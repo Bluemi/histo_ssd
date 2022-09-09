@@ -1,7 +1,5 @@
 """
 Lizard Dataset described here: https://arxiv.org/pdf/2108.11195.pdf
-
-TODO: rework transform bounding box
 """
 import random
 from pathlib import Path

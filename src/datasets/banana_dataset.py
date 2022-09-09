@@ -6,7 +6,11 @@ import torchvision
 
 
 def read_data_bananas(data_dir: str, is_train=True, verbose=True):
-    """Read the banana detection dataset images and labels."""
+    """
+    Read the banana detection dataset images and labels.
+
+    Taken from https://d2l.ai/chapter_computer-vision/object-detection-dataset.html and modified.
+    """
     if verbose:
         print(data_dir)
     csv_fname = os.path.join(data_dir, 'bananas_train' if is_train else 'bananas_val', 'label.csv')
@@ -26,7 +30,11 @@ def read_data_bananas(data_dir: str, is_train=True, verbose=True):
 
 
 class BananasDataset(torch.utils.data.Dataset):
-    """A customized dataset to load the banana detection dataset."""
+    """
+    A customized dataset to load the banana detection dataset.
+
+    Taken from https://d2l.ai/chapter_computer-vision/object-detection-dataset.html and modified.
+    """
     def __init__(self, data_dir: str, is_train, verbose=True):
         self.features, self.labels = read_data_bananas(data_dir, is_train, verbose=verbose)
         if verbose:
@@ -51,7 +59,11 @@ class BananasDataset(torch.utils.data.Dataset):
 
 
 def load_data_bananas(data_dir: str, batch_size, verbose=True):
-    """Load the banana detection dataset."""
+    """
+    Load the banana detection dataset.
+
+    Taken from https://d2l.ai/chapter_computer-vision/object-detection-dataset.html and modified.
+    """
     train_iter = torch.utils.data.DataLoader(
         BananasDataset(data_dir, is_train=True, verbose=verbose),
         batch_size,
