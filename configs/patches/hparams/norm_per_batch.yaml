@@ -1,4 +1,4 @@
 hyperparameters:
-  hnm_norm_per_batch:
+  hnm_norm_per:
     type: categorical
-    vals: [true, false]
+    vals: ['batch', 'sample', 'none']
