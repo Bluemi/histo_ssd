@@ -138,3 +138,4 @@ dmypy.json
 /jupyter
 *.ipynb
 /utils/credentials.yaml
+/utils/data.csv
