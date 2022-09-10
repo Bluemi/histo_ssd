@@ -45,7 +45,7 @@ def update_mean_average_precision(
         # predictions
         sample_pred_boxes = sample_predictions[:, 2:]
         if overwrite_wh:
-            sample_pred_boxes = _overwrite_width_height(sample_pred_boxes, sample_ground_truth_boxes)
+            sample_pred_boxes = _overwrite_width_height(sample_pred_boxes, sample_ground_truth_boxes[:, 1:])
         prediction_example = {
             'boxes': sample_pred_boxes,
             'scores': sample_predictions[:, 1],
