@@ -136,4 +136,5 @@ dmypy.json
 /tests/test_orig.ipynb
 /log.txt
 /jupyter
+*.ipynb
 /utils/credentials.yaml
