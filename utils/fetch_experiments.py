@@ -151,7 +151,11 @@ def fetch_trial(
     fetch_args = FetchTrialRawArgs(user=user, trial_id=trial.id)
     trial_info = _fetch_trial_raw(fetch_args)
 
-    last_step = trial_info['steps'][-1]
+    steps = trial_info['steps']
+    if not steps:
+        print('WARN: got no checkpoint for trial {}'.format(trial.id), file=sys.stderr)
+        return None
+    last_step = steps[-1]
     if last_step['state'] != 'COMPLETED':
         print('WARN: got no checkpoint for trial {}'.format(trial.id), file=sys.stderr)
         return None
@@ -269,7 +273,7 @@ def fetch_dataframe(
             print('WARN: Failed to import tqdm. Install tqdm to enable progress monitoring', file=sys.stderr)
 
     user = get_credentials()['username']
-    for experiment_id in _progress_function(experiment_ids):
+    for experiment_id in experiment_ids:
         # don't fetch again if experiment is cached
         if experiment_id in cached_experiment_ids:
             continue
@@ -292,7 +296,7 @@ def fetch_dataframe(
             for trial in trials:
                 futures.append(executor.submit(fetch_trial, experiment=experiment, trial=trial, user=user))
 
-            for future in futures:
+            for future in _progress_function(futures):
                 result = future.result()
                 if result is None:
                     continue
