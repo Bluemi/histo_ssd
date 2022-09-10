@@ -7,11 +7,9 @@ from models import SSDModel
 from utils.funcs import draw_boxes, debug
 
 
-MODEL = 'tiny'
-# noinspection PyRedeclaration
+# MODEL = 'tiny'
 MODEL = 'vgg16'
-# noinspection PyRedeclaration
-MODEL = 'vgg16early'
+# MODEL = 'vgg16early'
 
 if MODEL == 'tiny':
     LEVEL_SIZES = [32, 16, 8, 4, 1]
@@ -27,15 +25,18 @@ elif MODEL == 'vgg16early':
     IMAGE_SIZE = 300
 
 BATCH_SIZE = 1
-VERBOSE = False
+VERBOSE = True
 
 
 def main():
-    # model = SSDModel(num_classes=1, debug=False, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
-    model = SSDModel.from_state_dict(
-        state_dict_path='../ssd300_vgg16_coco-b556d3b4.pth', num_classes=1, debug=False, backbone_arch='vgg16early',
-        min_anchor_size=0.05, max_anchor_size=0.5
-    )
+    model = SSDModel(num_classes=1, debug=False, backbone_arch=MODEL, min_anchor_size=0.05, max_anchor_size=0.5)
+    # model = SSDModel.from_state_dict(
+    #     state_dict_path='../ssd300_vgg16_coco-b556d3b4.pth', num_classes=1, debug=False, backbone_arch='vgg16early',
+    #     min_anchor_size=0.05, max_anchor_size=0.5
+    # )
+
+    total_parameters = sum(p.numel() for p in model.parameters())
+    print('total parameters:', total_parameters)
 
     model.eval()
 
@@ -43,10 +44,11 @@ def main():
         image = torch.zeros((BATCH_SIZE, 3, IMAGE_SIZE, IMAGE_SIZE))
         x = image
         for block in model.backbone.blocks:
-            for layer in block:
-                x = layer(x)
-                if VERBOSE:
-                    print('{}: {}'.format(layer, x.shape))
+            if isinstance(block, torch.nn.Sequential):
+                for layer in block:
+                    x = layer(x)
+                    if VERBOSE:
+                        print('{}: {}'.format(layer, x.shape))
             if True:
                 print('--> feature map with shape: {}'.format(x.shape))
         anchors, cls_preds, bbox_preds = model(image)

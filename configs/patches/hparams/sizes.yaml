@@ -1,6 +1,6 @@
 variables:
   description:
-    action: "Test Sizes"
+    action: "anchor sizes"
 hyperparameters:
   min_anchor_size:
     type: double
@@ -8,5 +8,5 @@ hyperparameters:
     minval: 0.02
   max_anchor_size:
     type: double
-    maxval: 0.6
+    maxval: 0.7
     minval: 0.4
