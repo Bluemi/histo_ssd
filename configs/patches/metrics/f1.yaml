@@ -1,0 +1,3 @@
+searcher:
+  metric: f1_score
+  smaller_is_better: false

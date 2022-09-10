@@ -1,0 +1,2 @@
+hyperparameters:
+  nms_threshold: 0.71

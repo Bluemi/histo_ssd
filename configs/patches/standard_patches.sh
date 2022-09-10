@@ -19,19 +19,24 @@ patches=(
 	# p/hparams/sizes_small.yaml
 	# p/hparams/sizes_med.yaml
 	# p/hparams/negative_ratio_narrow.yaml
-	p/hparams/negative_ratio.yaml
+	# p/hparams/negative_ratio.yaml
 	# p/hparams/image_stride.yaml
 	# p/hparams/smoothl1.yaml
 	# p/hparams/nms_threshold.yaml
 	# p/hparams/iou_match_threshold.yaml
-	# p/hparams/bbox_loss_scale.yaml
+	p/hparams/bbox_loss_scale.yaml
 
 	# DEFAULT VALUES FOR HPARAMS
-	# p/hparams/iou_match_threshold_opt_map.yaml
 	p/hparams/iou_match_threshold_opt_f1.yaml
+	p/hparams/nms_threshold_opt_f1.yaml
+	p/hparams/negative_ratio_opt_f1.yaml
+	# p/hparams/iou_match_threshold_opt_map.yaml
+	# p/hparams/nms_threshold_opt_map.yaml
+	# p/hparams/negative_ratio_opt_map.yaml
 
 	p/metrics/loss.yaml
 	# p/metrics/map.yaml
+	# p/metrics/f1.yaml
 	p/metrics/write_predictions.yaml
 	# p/metrics/write_few_predictions.yaml
 

@@ -1,4 +1,5 @@
 searcher:
   metric: map
   smaller_is_better: false
+hyperparameters:
   always_compute_map: true
