@@ -4,7 +4,7 @@ import argparse
 import sys
 from typing import Tuple, List, Dict, Any, Optional
 
-
+from determined.common.api.errors import APIException
 from determined.experimental import Determined, TrialReference, ExperimentReference
 from determined.common import api
 import pandas as pd
@@ -149,7 +149,11 @@ def fetch_trial(
     Returns:
     """
     fetch_args = FetchTrialRawArgs(user=user, trial_id=trial.id)
-    trial_info = _fetch_trial_raw(fetch_args)
+    try:
+        trial_info = _fetch_trial_raw(fetch_args)
+    except APIException:
+        print('WARN: got no checkpoint for trial {}'.format(trial.id), file=sys.stderr)
+        return None
 
     steps = trial_info['steps']
     if not steps:
