@@ -40,7 +40,7 @@ HPARAM_KEYS = {
     'bbox_loss_scale': 'bbox_loss_scale',
     'dataset_split_size': 'dataset_split_size',
     'ignore_classes': 'ignore_classes',
-    'hnm_norm_per_batch': 'hnm_norm_per_batch',
+    'hnm_norm_per': 'hnm_norm_per',
     'dataset_image_size': 'dataset_image_size',
     'dataset': 'dataset',
     'warmup_batches': 'warmup_batches',

@@ -64,7 +64,7 @@ case "$1" in
 		;;
 	f|fetch)
 		shift
-		python3 ./utils/fetch_experiments.py "$@"
+		python3 ./utils/fetch_experiments.py --merge "$@"
 		;;
 	tf|function)
 		PYTHONPATH=./src python3 ./tests/test_function.py
