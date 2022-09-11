@@ -10,10 +10,10 @@ hyperparameters:
   hnm_norm_per_batch: true
   image_prediction_score_threshold: 0.7
   image_prediction_max_images: 0
-  negative_ratio: 4.0
-  min_anchor_size: 0.0555
-  max_anchor_size: 0.53
-  nms_threshold: 0.5
+  negative_ratio: 2.2
+  min_anchor_size: 0.045
+  max_anchor_size: 0.6
+  nms_threshold: 0.34
   aug_norm: false
   aug_rotate: true
   aug_flip: true

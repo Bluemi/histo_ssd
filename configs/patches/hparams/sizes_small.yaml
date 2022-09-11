@@ -6,7 +6,4 @@ hyperparameters:
     type: double
     maxval: 0.08
     minval: 0.02
-  max_anchor_size:
-    type: double
-    maxval: 0.6
-    minval: 0.5
+  max_anchor_size: 0.6
