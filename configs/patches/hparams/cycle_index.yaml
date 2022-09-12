@@ -1,0 +1,6 @@
+hyperparameters:
+  cycle_index:
+    type: int
+    minval: 1
+    maxval: 4
+    count: 4

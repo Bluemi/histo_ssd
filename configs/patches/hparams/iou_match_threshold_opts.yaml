@@ -1,0 +1,4 @@
+hyperparameters:
+  iou_match_threshold:
+    type: categorical
+    vals: [0.5, 0.25]

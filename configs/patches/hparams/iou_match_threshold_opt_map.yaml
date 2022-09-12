@@ -2,4 +2,4 @@ variables:
   description:
     action: "iou_match_opt_map"
 hyperparameters:
-  iou_match_threshold: 2.5
+  iou_match_threshold: 0.25

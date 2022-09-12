@@ -1,0 +1,4 @@
+hyperparameters:
+  nms_threshold:
+    type: categorical
+    vals: [0.34, 0.71]

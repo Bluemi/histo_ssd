@@ -1,0 +1,4 @@
+searcher:
+  name: grid
+  max_length:
+    batches: 3000
