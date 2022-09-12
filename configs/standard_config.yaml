@@ -4,7 +4,7 @@ hyperparameters:
   global_batch_size: 32
   num_workers: 8
   optimizer: "sgd"
-  learning_rate: 0.023
+  learning_rate: 0.01
   l2_regularization: 1e-5
   momentum: 0.9
   image_prediction_score_threshold: 0.7

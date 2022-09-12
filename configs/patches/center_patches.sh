@@ -1,9 +1,9 @@
 base_config="./configs/center_config.yaml"
 patches=(
 	# p/cluster/pepper.yaml
-	p/cluster/pepper_full.yaml
+	# p/cluster/pepper_full.yaml
 	# p/cluster/pepper_few.yaml
-	# p/cluster/dt.yaml
+	p/cluster/dt.yaml
 
 	p/dataset/lizard.yaml
 	p/dataset/ignore_rare_classes.yaml
