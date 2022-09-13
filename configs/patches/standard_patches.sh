@@ -27,7 +27,7 @@ patches=(
 	# p/hparams/iou_match_threshold.yaml
 	p/hparams/iou_match_threshold_opts.yaml
 	# p/hparams/bbox_loss_scale.yaml
-	p/hparams/cycle_index.yaml
+	# p/hparams/cycle_index.yaml
 
 	# DEFAULT VALUES FOR HPARAMS
 	# p/hparams/iou_match_threshold_opt_f1.yaml

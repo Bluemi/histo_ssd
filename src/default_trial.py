@@ -315,7 +315,9 @@ class DefaultTrial(PyTorchTrial):
                     if USE_MAP_UNDIV:
                         update_mean_average_precision(mean_ap_undiv, batch['boxes'], batch_output)
                     if self.enable_map_plus:
-                        update_mean_average_precision(mean_ap_plus, batch['boxes'], batch_output, overwrite_wh=True)
+                        update_mean_average_precision(
+                            mean_ap_plus, batch['boxes'], batch_output, overwrite_wh=True, divide_limit=100
+                        )
                     if not (self.enable_full_evaluation or prediction_counter < MAX_MAP_UPDATES):
                         print('WARN: stopping map updates')
 
