@@ -57,11 +57,14 @@ METRIC_KEYS = {
     'recall': 'recall',
     'precision': 'precision',
     'map': 'map',
+    'map+': 'map+',
     'loss': 'loss',
     'bbox_loss': 'bbox_loss',
     'cls_loss': 'cls_loss',
     'map_50': 'map_50',
     'map_75': 'map_75',
+    'map_50+': 'map_50+',
+    'map_75+': 'map_75+',
 }
 
 
