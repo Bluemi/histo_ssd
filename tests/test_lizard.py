@@ -38,11 +38,11 @@ def main():
     # debug(len(validation))
 
     # show_max_boxes(whole_dataset)
-    # show_area_stats(whole_dataset)
+    show_area_stats(whole_dataset)
     # show_images(whole_dataset)
     # show_distributions(whole_dataset, train, validation)
     # test_cut(whole_dataset)
-    test_box_plotting(whole_dataset)
+    # test_box_plotting(whole_dataset)
 
 
 def test_box_plotting(dataset):
@@ -93,7 +93,10 @@ def test_cut(dataset):
 def show_sample(image, boxes):
     image = (image.permute((1, 2, 0)) * 255.0).to(torch.int32)
     boxes = filter_boxes(boxes)
-    draw_boxes(image, torch.tensor(boxes[:, 1:]), box_format='ltrb')
+    draw_boxes(
+        image, torch.tensor(boxes[:, 1:]), box_format='ltrb',
+        color=BRIGHT_COLORS, color_indices=torch.tensor(boxes[:, 0]), sign='box', color_mode='set',
+    )
     plt.imshow(image)
     plt.show()
 
@@ -114,19 +117,24 @@ def show_images(dataset):
 def show_area_stats(dataset):
     max_area = 0
     min_area = 1
-    bins = np.array([0.0, 0.01, 0.])
+
+    box_area_sum = 0
+    num_boxes = 0
     for i in range(len(dataset)):
         sample = dataset[i]
         boxes = filter_boxes(sample['boxes'])
 
         box_areas = box_area(boxes[:, 1:])
 
-
+        box_area_sum += np.sum(box_areas)
+        num_boxes += len(box_areas)
         max_area = max(max_area, np.max(box_areas))
         min_area = min(min_area, np.min(box_areas))
 
     print('min area:', min_area)
     print('max area:', max_area)
+    print('mean area:', box_area_sum / num_boxes)
+    print('avg num objects per image:', num_boxes / len(dataset))
 
 
 def show_distributions(whole_dataset, train_dataset, val_dataset):

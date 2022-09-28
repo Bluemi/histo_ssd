@@ -4,5 +4,5 @@ variables:
 hyperparameters:
   backbone_arch: "vgg16"
   model_image_size: 300
-  pretrained: true
-  warmup_batches: 300
+  pretrained: false
+  warmup_batches: 0
